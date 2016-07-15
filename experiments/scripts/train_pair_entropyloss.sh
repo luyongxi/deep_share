@@ -23,6 +23,6 @@ time ./tools/train_attr.py --gpu 0 \
     --solver models/"$name"_pair_entropy_loss/solver.prototxt \
     --traindb celeba_train \
     --valdb celeba_val \
-    --iters 20000 \
+    --iters 40000 \
     --cls_id "$cls_id1,$cls_id2" \
     --infix [cls=$cls_id1,$cls_id2]

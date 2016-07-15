@@ -1,4 +1,4 @@
-net: "models/baseline_pair_entropy_loss/train_val.prototxt"
+net: "models/doublebranch_pair_entropy_loss/train_val.prototxt"
 base_lr: 0.01
 lr_policy: "step"
 gamma: 0.1
@@ -7,7 +7,7 @@ momentum: 0.9
 weight_decay: 0.0005
 # caffe solver snapshotting is disabled
 snapshot: 0
-snapshot_prefix: "vgg16_att_cls_baseline_pair_entropy_loss"
+snapshot_prefix: "vgg16_att_cls_doublebranch_pair_entropy_loss"
 # shut-down caffe display
 display: 0
 # shut-down caffe validation

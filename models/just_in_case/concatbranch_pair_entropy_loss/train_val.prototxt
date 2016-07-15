@@ -49,7 +49,7 @@ layer {
     bias_filler {
       type: "constant"
       value: 0
-    }       
+    }    
   }
 }
 layer {
@@ -61,15 +61,22 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 48
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
     }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }    
   }
 }
 layer {
@@ -81,33 +88,44 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 48
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
     }
   }
 }
 layer {
   bottom: "conv1-1"
-  top: "conv1-1"
-  name: "relu1-1"
-  type: "ReLU"
-}
-layer {
   bottom: "conv1-2"
-  top: "conv1-2"
-  name: "relu1-2"
+  top: "conv1"  
+  name: "concat_conv1"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "conv1"
+  top: "conv1"
+  name: "relu1"
   type: "ReLU"
 }
 layer {
-  bottom: "conv1-1"
-  top: "norm1-1"
-  name: "norm1-1"
+  bottom: "conv1"
+  top: "norm1"
+  name: "norm1"
   type: "LRN"
   lrn_param {
     local_size: 5
@@ -117,37 +135,25 @@ layer {
   }
 }
 layer {
-  bottom: "conv1-2"
-  top: "norm1-2"
-  name: "norm1-2"
-  type: "LRN"
-  lrn_param {
-    local_size: 5
-    alpha: 0.0005
-    beta: 0.75
-    k: 2
+  bottom: "norm1"
+  top: "pool1"
+  name: "pool1"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
   }
 }
 layer {
-  bottom: "norm1-1"
+  bottom: "pool1"
   top: "pool1-1"
-  name: "pool1-1"
-  type: "Pooling"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
-  }
-}
-layer {
-  bottom: "norm1-2"
   top: "pool1-2"
-  name: "pool1-2"
-  type: "Pooling"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
+  name: "slicer_pool1"
+  type: "Slice"
+  slice_param {
+    axis: 1
+    slice_point: 48
   }
 }
 layer {
@@ -212,6 +218,16 @@ layer {
 }
 layer {
   bottom: "basis2-1"
+  bottom: "basis2-2"
+  top: "basis2"  
+  name: "concat_basis2"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "basis2"
   top: "conv2-1"
   name: "conv2-1"
   type: "Convolution"
@@ -219,19 +235,26 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 128
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
     }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }    
   }
 }
 layer {
-  bottom: "basis2-2"
+  bottom: "basis2"
   top: "conv2-2"
   name: "conv2-2"
   type: "Convolution"
@@ -239,33 +262,44 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 128
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
     }
   }
 }
 layer {
   bottom: "conv2-1"
-  top: "conv2-1"
-  name: "relu2-1"
-  type: "ReLU"
-}
-layer {
   bottom: "conv2-2"
-  top: "conv2-2"
-  name: "relu2-2"
+  top: "conv2"  
+  name: "concat_conv2"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "conv2"
+  top: "conv2"
+  name: "relu2"
   type: "ReLU"
 }
 layer {
-  bottom: "conv2-1"
-  top: "norm2-1"
-  name: "norm2-1"
+  bottom: "conv2"
+  top: "norm2"
+  name: "norm2"
   type: "LRN"
   lrn_param {
     local_size: 5
@@ -275,37 +309,25 @@ layer {
   }
 }
 layer {
-  bottom: "conv2-2"
-  top: "norm2-2"
-  name: "norm2-2"
-  type: "LRN"
-  lrn_param {
-    local_size: 5
-    alpha: 0.0005
-    beta: 0.75
-    k: 2
+  bottom: "norm2"
+  top: "pool2"
+  name: "pool2"
+  type: "Pooling"
+  pooling_param {
+    pool: MAX
+    kernel_size: 3
+    stride: 2
   }
 }
 layer {
-  bottom: "norm2-1"
+  bottom: "pool2"
   top: "pool2-1"
-  name: "pool2-1"
-  type: "Pooling"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
-  }
-}
-layer {
-  bottom: "norm2-2"
   top: "pool2-2"
-  name: "pool2-2"
-  type: "Pooling"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
+  name: "slicer_pool2"
+  type: "Slice"
+  slice_param {
+    axis: 1
+    slice_point: 128
   }
 }
 layer {
@@ -331,6 +353,10 @@ layer {
       type: "gaussian"
       std: 0.01
     }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }    
   }
 }
 layer {
@@ -359,11 +385,21 @@ layer {
     bias_filler {
       type: "constant"
       value: 0
-    }   
+    }    
   }
 }
 layer {
   bottom: "basis3-1"
+  bottom: "basis3-2"
+  top: "basis3"  
+  name: "concat_basis3"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "basis3"
   top: "conv3-1"
   name: "conv3-1"
   type: "Convolution"
@@ -371,19 +407,26 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 256
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
     }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }    
   }
 }
 layer {
-  bottom: "basis3-2"
+  bottom: "basis3"
   top: "conv3-2"
   name: "conv3-2"
   type: "Convolution"
@@ -391,14 +434,21 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 256
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
     }
   }
 }
@@ -440,7 +490,7 @@ layer {
     bias_filler {
       type: "constant"
       value: 0
-    }       
+    }    
   }
 }
 layer {
@@ -474,6 +524,16 @@ layer {
 }
 layer {
   bottom: "basis4-1"
+  bottom: "basis4-2"
+  top: "basis4"  
+  name: "concat_basis4"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "basis4"
   top: "conv4-1"
   name: "conv4-1"
   type: "Convolution"
@@ -481,19 +541,26 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 256
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
     }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }    
   }
 }
 layer {
-  bottom: "basis4-2"
+  bottom: "basis4"
   top: "conv4-2"
   name: "conv4-2"
   type: "Convolution"
@@ -501,14 +568,21 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 256
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
     }
   }
 }
@@ -524,6 +598,8 @@ layer {
   name: "relu4-2"
   type: "ReLU"
 }
+
+# new conv4 above
 layer {
   bottom: "conv4-1"
   top: "basis5-1"
@@ -550,7 +626,7 @@ layer {
     bias_filler {
       type: "constant"
       value: 0
-    }       
+    }    
   }
 }
 layer {
@@ -579,11 +655,21 @@ layer {
     bias_filler {
       type: "constant"
       value: 0
-    }   
+    }    
   }
 }
 layer {
   bottom: "basis5-1"
+  bottom: "basis5-2"
+  top: "basis5"  
+  name: "concat_basis5"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "basis5"
   top: "conv5-1"
   name: "conv5-1"
   type: "Convolution"
@@ -591,19 +677,26 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 256
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
     }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }    
   }
 }
 layer {
-  bottom: "basis5-2"
+  bottom: "basis5"
   top: "conv5-2"
   name: "conv5-2"
   type: "Convolution"
@@ -611,33 +704,44 @@ layer {
     lr_mult: 1
     decay_mult: 1
   }
+  param {
+    lr_mult: 2
+    decay_mult: 0
+  }
   convolution_param {
     num_output: 256
     kernel_size: 1
     stride: 1
-    bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.1
+      std: 0.01
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
     }
   }
 }
 layer {
   bottom: "conv5-1"
-  top: "conv5-1"
-  name: "relu5-1"
-  type: "ReLU"
-}
-layer {
   bottom: "conv5-2"
-  top: "conv5-2"
-  name: "relu5-2"
+  top: "conv5"  
+  name: "concat_conv5"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "conv5"
+  top: "conv5"
+  name: "relu5"
   type: "ReLU"
 }
 layer {
-  bottom: "conv5-1"
-  top: "pool5-1"
-  name: "pool5-1"
+  bottom: "conv5"
+  top: "pool5"
+  name: "pool5"
   type: "Pooling"
   pooling_param {
     pool: MAX
@@ -646,14 +750,14 @@ layer {
   }
 }
 layer {
-  bottom: "conv5-2"
+  bottom: "pool5"
+  top: "pool5-1"
   top: "pool5-2"
-  name: "pool5-2"
-  type: "Pooling"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
+  name: "slicer_pool5"
+  type: "Slice"
+  slice_param {
+    axis: 1
+    slice_point: 256
   }
 }
 layer {
