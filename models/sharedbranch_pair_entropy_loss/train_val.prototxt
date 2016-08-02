@@ -29,12 +29,10 @@ layer {
   name: "basis1"
   type: "Convolution"
   param {
-    name: "basis1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis1_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -62,7 +60,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 96
+    num_output: 48
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -82,7 +80,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 96
+    num_output: 48
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -152,46 +150,24 @@ layer {
 }
 layer {
   bottom: "pool1-1"
-  top: "basis2-1"
-  name: "basis2-1"
-  type: "Convolution"
-  param {
-    name: "basis2_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "basis2_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 30  # number of basis
-    pad: 1
-    kernel_size: 5
-    stride: 2
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }    
-  }
-}
-layer {
   bottom: "pool1-2"
-  top: "basis2-2"
-  name: "basis2-2"
+  top: "pool1"  
+  name: "concat_pool1"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "pool1"
+  top: "basis2"
+  name: "basis2"
   type: "Convolution"
   param {
-    name: "basis2_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis2_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -211,7 +187,7 @@ layer {
   }
 }
 layer {
-  bottom: "basis2-1"
+  bottom: "basis2"
   top: "conv2-1"
   name: "conv2-1"
   type: "Convolution"
@@ -220,7 +196,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 256
+    num_output: 128
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -231,7 +207,7 @@ layer {
   }
 }
 layer {
-  bottom: "basis2-2"
+  bottom: "basis2"
   top: "conv2-2"
   name: "conv2-2"
   type: "Convolution"
@@ -240,7 +216,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 256
+    num_output: 128
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -310,41 +286,24 @@ layer {
 }
 layer {
   bottom: "pool2-1"
-  top: "basis3-1"
-  name: "basis3-1"
-  type: "Convolution"
-  param {
-    name: "basis3_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "basis3_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 30  # number of basis
-    pad: 1
-    kernel_size: 3
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-  }
-}
-layer {
   bottom: "pool2-2"
-  top: "basis3-2"
-  name: "basis3-2"
+  top: "pool2"  
+  name: "concat_pool2"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "pool2"
+  top: "basis3"
+  name: "basis3"
   type: "Convolution"
   param {
-    name: "basis3_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis3_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -356,14 +315,10 @@ layer {
       type: "gaussian"
       std: 0.01
     }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }   
   }
 }
 layer {
-  bottom: "basis3-1"
+  bottom: "basis3"
   top: "conv3-1"
   name: "conv3-1"
   type: "Convolution"
@@ -372,7 +327,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -383,7 +338,7 @@ layer {
   }
 }
 layer {
-  bottom: "basis3-2"
+  bottom: "basis3"
   top: "conv3-2"
   name: "conv3-2"
   type: "Convolution"
@@ -392,7 +347,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -416,16 +371,24 @@ layer {
 }
 layer {
   bottom: "conv3-1"
-  top: "basis4-1"
-  name: "basis4-1"
+  bottom: "conv3-2"
+  top: "conv3"  
+  name: "concat_conv3"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "conv3"
+  top: "basis4"
+  name: "basis4"
   type: "Convolution"
   param {
-    name: "basis4_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis4_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -444,36 +407,7 @@ layer {
   }
 }
 layer {
-  bottom: "conv3-2"
-  top: "basis4-2"
-  name: "basis4-2"
-  type: "Convolution"
-  param {
-    name: "basis4_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "basis4_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 30  # number of basis
-    pad: 1
-    kernel_size: 3
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }    
-  }
-}
-layer {
-  bottom: "basis4-1"
+  bottom: "basis4"
   top: "conv4-1"
   name: "conv4-1"
   type: "Convolution"
@@ -482,7 +416,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -493,7 +427,7 @@ layer {
   }
 }
 layer {
-  bottom: "basis4-2"
+  bottom: "basis4"
   top: "conv4-2"
   name: "conv4-2"
   type: "Convolution"
@@ -502,7 +436,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -526,16 +460,24 @@ layer {
 }
 layer {
   bottom: "conv4-1"
-  top: "basis5-1"
-  name: "basis5-1"
+  bottom: "conv4-2"
+  top: "conv4"  
+  name: "concat_conv4"
+  type: "Concat"
+  concat_param {
+    axis: 1
+  }
+}
+layer {
+  bottom: "conv4"
+  top: "basis5"
+  name: "basis5"
   type: "Convolution"
   param {
-    name: "basis5_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis5_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -554,36 +496,7 @@ layer {
   }
 }
 layer {
-  bottom: "conv4-2"
-  top: "basis5-2"
-  name: "basis5-2"
-  type: "Convolution"
-  param {
-    name: "basis5_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "basis5_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 30  # number of basis
-    pad: 1
-    kernel_size: 3
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }   
-  }
-}
-layer {
-  bottom: "basis5-1"
+  bottom: "basis5"
   top: "conv5-1"
   name: "conv5-1"
   type: "Convolution"
@@ -592,7 +505,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
@@ -603,7 +516,7 @@ layer {
   }
 }
 layer {
-  bottom: "basis5-2"
+  bottom: "basis5"
   top: "conv5-2"
   name: "conv5-2"
   type: "Convolution"
@@ -612,7 +525,7 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false

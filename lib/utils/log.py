@@ -14,28 +14,36 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-def parse_mle_and_plot(filename, sets, output='loss.png', run_length = 1, max_iters = None, epoch_size = None):
-    """ parse the mle log for a particular set, output file at the output location"""
-    
-    # parse from files    
+def parse_mle_and_plot(filename, splits, output='loss.png', run_length=1, max_iters=None, epoch_size=None, max_y=None):
+    """ parse the mle log for a particular split, output file at the output location """    
+
+    # parse from files
     iters = {}
     err = {}
-    for set in sets:
-        iters[set], err[set] = parse_mle(filename, set)
+    for split in splits:
+        iters[split] = []
+        err[split] = []
+        for fn in filename:
+            it, v = parse_mle(fn, split)
+            iters[split].append(it)
+            err[split].append(v)
+        # take average
+        iters[split] = iters[split][0]
+        err[split] = np.mean(np.dstack(err[split]), axis=2)
 
     # if max_iters is specified, truncate loss
     if max_iters is not None:
-        for set in sets:
-            end = min(max_iters, np.max(iter[set]))
-            iters[set] = iters[set][:end]
-            err[set] = err[set][:end]
+        for split in splits:
+            end = min(max_iters, np.max(iters[split]))
+            iters[split] = iters[split][:end]
+            err[split] = err[split][:end]
 
-    # perform sampling and smoothing for the training set
-    if 'training' in sets and 'validation' in sets:
+    # perform sampling and smoothing for the training split
+    if 'training' in splits and 'validation' in splits:
         A = iters['training']
         B = iters['validation']
         # sample iterations
-        center_inds = np.array([i for i in xrange(len(A)) if A[i] in B])
+        center_inds = np.array([i for i in xrange(len(A)) if A[i] in B], dtype=np.int32)
         iters['training'] = A[center_inds]
         # sample errors
         begins = np.maximum(0, center_inds - run_length)
@@ -46,18 +54,18 @@ def parse_mle_and_plot(filename, sets, output='loss.png', run_length = 1, max_it
 
     # convert iterations to epochs if necessary
     if epoch_size is not None:
-        for set in sets:
-            iters[set] = iters[set].astype(np.float32, copy=False)
-            iters[set] /= epoch_size
+        for split in splits:
+            iters[split] = iters[split].astype(np.float32, copy=False)
+            iters[split] /= epoch_size
 
-    plot_mle_mean(iters, err, output)
+    plot_mle_mean(iters, err, output, max_y)
 
-def parse_mle(filename, set):
-    """ parse mle log for a particular set """
+def parse_mle(filename, split):
+    """ parse mle log for a particular split """
     
     iters = []
     err = []
-    pattern = 'Iteration [0-9]*: {} error = \[[0-9.\ ]*\]'.format(set)
+    pattern = 'Iteration [0-9]*: {} error = \[[0-9.\ ]*\]'.format(split)
     with open(filename) as f:
         data = ' '.join([line.replace('\n', '') for line in f])
         match = re.findall(pattern, data)
@@ -74,7 +82,7 @@ def parse_mle(filename, set):
 
     return iters, err
 
-def plot_mle_mean(iters, err, output="loss.png"):
+def plot_mle_mean(iters, err, output="loss.png", max_y=None):
     """ Plot the evolution of multi-label error as a function of training iterations """
    
     fig, ax = plt.subplots()
@@ -82,12 +90,15 @@ def plot_mle_mean(iters, err, output="loss.png"):
     max_value = 0
     max_iters = 0
 
-    # set y axis [0, max], set x axis [0, max_iters] (if the provided max_iters is not integer, 
+    # split y axis [0, max], split x axis [0, max_iters] (if the provided max_iters is not integer, 
     # e.g. it is the number of epochs, round it)
-    for set, x in iters.iteritems():
-        ax.plot(x, np.mean(err[set], axis=1), label=set, linewidth=3.0)
-        max_value = max(max_value, np.max(np.mean(err[set], axis=1)))
-        max_iters = np.round(max(max_iters, np.max(iters[set]))).astype(np.int32)
+    for split, x in iters.iteritems():
+        ax.plot(x, np.mean(err[split], axis=1), label=split, linewidth=3.0)
+        max_value = max(max_value, np.max(np.mean(err[split], axis=1)))
+        max_iters = np.round(max(max_iters, np.max(iters[split]))).astype(np.int32)
+    # if user sets maximum of y axis, use the user setting
+    if max_y is not None:
+        max_value = max_y
 
     ax.axis([0, max_iters, 0, max_value])
     legend = ax.legend(loc='best', shadow=True)

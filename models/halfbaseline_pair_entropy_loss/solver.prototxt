@@ -1,0 +1,15 @@
+net: "models/halfbaseline_pair_entropy_loss/train_val.prototxt"
+base_lr: 0.01
+lr_policy: "step"
+gamma: 0.1
+stepsize: 10000
+momentum: 0.9
+weight_decay: 0.0005
+# caffe solver snapshotting is disabled
+snapshot: 0
+snapshot_prefix: "vgg16_att_cls_halfbaseline_pair_entropy_loss"
+# shut-down caffe display
+display: 0
+# shut-down caffe validation
+test_iter: 0
+test_interval: 1000

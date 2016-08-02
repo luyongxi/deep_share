@@ -39,7 +39,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     kernel_size: 7
     stride: 2
     weight_filler {
@@ -166,7 +166,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 5
     stride: 2
@@ -196,7 +196,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 5
     stride: 2
@@ -324,7 +324,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 3
     weight_filler {
@@ -349,7 +349,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 3
     weight_filler {
@@ -430,7 +430,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 3
     weight_filler {
@@ -459,7 +459,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 3
     weight_filler {
@@ -540,7 +540,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 3
     weight_filler {
@@ -569,7 +569,7 @@ layer {
     decay_mult: 0
   }
   convolution_param {
-    num_output: 30  # number of basis
+    num_output: 15  # number of basis
     pad: 1
     kernel_size: 3
     weight_filler {

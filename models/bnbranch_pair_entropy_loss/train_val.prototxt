@@ -62,13 +62,13 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 96
+    num_output: 48
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
@@ -82,21 +82,45 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 96
+    num_output: 48
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
 layer {
   bottom: "conv1-1"
   top: "conv1-1"
+  name: "bn_conv1-1"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv1-1"
+  top: "conv1-1"
+  name: "scale_conv1-1"
+  type: "Scale"
+}
+layer {
+  bottom: "conv1-1"
+  top: "conv1-1"
   name: "relu1-1"
   type: "ReLU"
+}
+layer {
+  bottom: "conv1-2"
+  top: "conv1-2"
+  name: "bn_conv1-2"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv1-2"
+  top: "conv1-2"
+  name: "scale_conv1-2"
+  type: "Scale"
 }
 layer {
   bottom: "conv1-2"
@@ -220,13 +244,13 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 256
+    num_output: 128
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
@@ -240,21 +264,45 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 256
+    num_output: 128
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
 layer {
   bottom: "conv2-1"
   top: "conv2-1"
+  name: "bn_conv2-1"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv2-1"
+  top: "conv2-1"
+  name: "scale_conv2-1"
+  type: "Scale"
+}
+layer {
+  bottom: "conv2-1"
+  top: "conv2-1"
   name: "relu2-1"
   type: "ReLU"
+}
+layer {
+  bottom: "conv2-2"
+  top: "conv2-2"
+  name: "bn_conv2-2"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv2-2"
+  top: "conv2-2"
+  name: "scale_conv2-2"
+  type: "Scale"
 }
 layer {
   bottom: "conv2-2"
@@ -372,13 +420,13 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
@@ -392,21 +440,45 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
 layer {
   bottom: "conv3-1"
   top: "conv3-1"
+  name: "bn_conv3-1"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv3-1"
+  top: "conv3-1"
+  name: "scale_conv3-1"
+  type: "Scale"
+}
+layer {
+  bottom: "conv3-1"
+  top: "conv3-1"
   name: "relu3-1"
   type: "ReLU"
+}
+layer {
+  bottom: "conv3-2"
+  top: "conv3-2"
+  name: "bn_conv3-2"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv3-2"
+  top: "conv3-2"
+  name: "scale_conv3-2"
+  type: "Scale"
 }
 layer {
   bottom: "conv3-2"
@@ -482,13 +554,13 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
@@ -502,21 +574,45 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
 layer {
   bottom: "conv4-1"
   top: "conv4-1"
+  name: "bn_conv4-1"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv4-1"
+  top: "conv4-1"
+  name: "scale_conv4-1"
+  type: "Scale"
+}
+layer {
+  bottom: "conv4-1"
+  top: "conv4-1"
   name: "relu4-1"
   type: "ReLU"
+}
+layer {
+  bottom: "conv4-2"
+  top: "conv4-2"
+  name: "bn_conv4-2"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv4-2"
+  top: "conv4-2"
+  name: "scale_conv4-2"
+  type: "Scale"
 }
 layer {
   bottom: "conv4-2"
@@ -592,13 +688,13 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
@@ -612,21 +708,45 @@ layer {
     decay_mult: 1
   }
   convolution_param {
-    num_output: 512
+    num_output: 256
     kernel_size: 1
     stride: 1
     bias_term: false
     weight_filler {
       type: "gaussian"
-      std: 0.05
+      std: 0.1
     }
   }
 }
 layer {
   bottom: "conv5-1"
   top: "conv5-1"
+  name: "bn_conv5-1"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv5-1"
+  top: "conv5-1"
+  name: "scale_conv5-1"
+  type: "Scale"
+}
+layer {
+  bottom: "conv5-1"
+  top: "conv5-1"
   name: "relu5-1"
   type: "ReLU"
+}
+layer {
+  bottom: "conv5-2"
+  top: "conv5-2"
+  name: "bn_conv5-2"
+  type: "BatchNorm"
+}
+layer {
+  bottom: "conv5-2"
+  top: "conv5-2"
+  name: "scale_conv5-2"
+  type: "Scale"
 }
 layer {
   bottom: "conv5-2"
