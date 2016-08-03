@@ -496,7 +496,12 @@ layer {
     }
   }
 }
-
+layer {
+  name: "prob"
+  type: "Sigmoid"
+  bottom: "score"
+  top: "score"
+}
 layer {
   bottom: "score"
   bottom: "label"
@@ -505,18 +510,10 @@ layer {
   loss_weight: 1
   include: { phase: TRAIN }
 }
-
-layer {
-  name: "attr_prob"
-  type: "Sigmoid"
-  bottom: "score"
-  top: "attr_prob"
-}
-
 layer {
   name: "error"
   type: "Python"
-  bottom: "attr_prob"
+  bottom: "score"
   bottom: "label"
   top: "error"
   python_param {

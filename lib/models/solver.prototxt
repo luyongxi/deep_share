@@ -1,0 +1,12 @@
+test_iter: 0
+test_interval: 1000
+base_lr: 0.01
+display: 0
+lr_policy: "step"
+gamma: 0.1
+momentum: 0.9
+weight_decay: 0.0005
+stepsize: 20000
+snapshot: 0
+snapshot_prefix: "default"
+net: "train_val.prototxt"

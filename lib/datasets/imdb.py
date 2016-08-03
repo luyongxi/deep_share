@@ -26,6 +26,10 @@ class Imdb(object):
         return len(self._classes)
 
     @property
+    def classes(self):
+        return self._classes
+
+    @property
     def gtdb(self):
         return self._gtdb
 
@@ -52,12 +56,12 @@ class Imdb(object):
         """ absolute path """
         return [self._image_list[i] for i in inds]
 
-    def image_gt_at(self, i):
-        """ return ground truth"""
+    # def image_gt_at(self, i):
+    #     """ return ground truth"""
         
 
-    def image_gt_at_inds(self, inds):
-        """ return ground truth"""
+    # def image_gt_at_inds(self, inds):
+    #     """ return ground truth"""
 
 
     @property

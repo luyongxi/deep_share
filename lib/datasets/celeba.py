@@ -140,17 +140,19 @@ class CelebA(Imdb):
 
         return lm
     
-    def evaluate(self, result, ind):
+    def evaluate(self, scores, ind, cls_idx=None):
         """ Evaluation: Report classification error rate. 
-            "result" is a (N x C) matrix, where N is the number of samples, 
-                C is the number of classes.
-            "ind" is an array that can index into result
+            "scores" is a (N x C) matrix, where N is the number of samples, 
+                C is the number of classes. C=len(cls_idx) if provided.
+            "ind" is an array that index into result
         """
+        if cls_idx is None:
+            cls_idx = np.arange(self.num_classes)
 
-        gt = self.gtdb['attr'][ind, :]
-        err = compute_mll(result, gt)
+        gt = self.gtdb['attr'][ind, cls_idx]
+        err = compute_mle(scores, gt)
         
-        return err        
+        return err
 
     def print_info(self, i):
         """ Output information about the image and some ground truth. """

@@ -339,7 +339,7 @@ layer {
 }
  layer {
   bottom: "score"
-  top: "attr_prob"
-  name: "attr_prob"
+  top: "score"
+  name: "porb"
   type: "Sigmoid"
  }

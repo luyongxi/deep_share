@@ -4,10 +4,29 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-
 """
 Train atribute classifier
 """
+
+# TODO: transform this function to allow it to dynamically generate models, based on current
+# preferences. Both the solver file and the model file can be easily created in a dynamic way.
+# In addition, do we need to have config files, or should we simply replace them with options
+# that are directly input as scripts?
+
+# Possibly, options should save configurations that are relatively fixed, and should only be
+# changed whenever we change the dataset. 
+
+# Options that need to be dynamically changed include learning rate (and other options concerning the training), 
+# task assignment (when we use the same datasets), the structure of the network etc. Some of these are used
+# to be controlled by the prototxt files. 
+
+# We should provide options to specify solver. But if solvers are not provided, we use the options provided from
+# the argument lists. If some or all arguments are omitted and the solver file is not provided, we use the defalut
+# values. 
+
+# Concerning the network architecture, we probably should hava an architecture factory (jsut as we did for dataset), 
+# and have user specify which initial architecture to use.
+
 
 import _init_paths
 from att.train import train_attr

@@ -4,16 +4,6 @@
 import sys
 import os.path as osp
 
-def add_path(path):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-this_dir = osp.dirname(__file__)
-caffe_path = osp.join(this_dir, '..', '..','caffe', 'python')
-add_path(caffe_path)
-
-import caffe
-
 from caffe import layers as L
 from caffe import params as P
 from math import sqrt

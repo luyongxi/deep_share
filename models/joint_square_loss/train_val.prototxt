@@ -498,14 +498,14 @@ layer {
 }
 
 layer {
-  name: "attr_prob"
+  name: "prob"
   type: "Sigmoid"
   bottom: "score"
-  top: "attr_prob"
+  top: "score"
 }
 
 layer {
-  bottom: "attr_prob"
+  bottom: "score"
   bottom: "label"
   name: "loss"
   type: "EuclideanLoss"
@@ -516,7 +516,7 @@ layer {
 layer {
   name: "error"
   type: "Python"
-  bottom: "attr_prob"
+  bottom: "score"
   bottom: "label"
   top: "error"
   python_param {
