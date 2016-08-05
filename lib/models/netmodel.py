@@ -2,19 +2,9 @@
 
 """ A class that represents the network models we are interested in """
 
-import sys
+import os
 import os.path as osp
-
-def add_path(path):
-    if path not in sys.path:
-        sys.path.insert(0, path)
-
-this_dir = osp.dirname(__file__)
-caffe_path = osp.join(this_dir, '..', '..','caffe', 'python')
-add_path(caffe_path)
-
 import caffe
-import os.path as osp
 
 class NetBlob(object):
     """ A structure that encodes a blob  """
@@ -62,11 +52,11 @@ class NetBlob(object):
 class NetModel(object):
     """ A model for the neural network """
 
-    def __init__(self, model_name, solver_path, io, num_layers):
+    def __init__(self, model_name, path, io, num_layers):
         """ Initialize a model for neural network
             Inputs:
                 model_name: name of the model
-                solver_path: path that contains the solver.prototxt
+                path: root path to save the prototxt files
                 io: specifies the input/output, must has the following members
                     num_tasks: number of tasks (determine the number of branches 
                            of the last intermediate layers)
@@ -78,7 +68,7 @@ class NetModel(object):
                             output layers)
         """
         self._model_name = model_name
-        self._solver_path = solver_path
+        self._path = path
         self._io = io
         self._num_layers = num_layers
         self._init_graph(num_layers, self.num_tasks)
@@ -88,12 +78,10 @@ class NetModel(object):
 
     def _init_graph(self, num_layers, num_tasks):
         """ Initilize the connection graph of blobs """
-        self._net_graph = [[] for _ in xrange(num_layers)]
-        for i in xrange(num_layers):
-            j = num_layers-i-1    # start from the top layer
-            if j==num_layers-1:
-                # for k in xrange(num_tasks):
-                #     self._net_graph[j].append(NetBlob(top_idx=[k], tasks=[[k]]))
+        self._net_graph = [[] for _ in xrange(num_layers+1)]
+        for i in xrange(num_layers+1):
+            j = num_layers-i    # start from the top layer
+            if j==num_layers:
                 self._net_graph[j].append(NetBlob(top_idx=range(num_tasks), 
                     tasks=[[k] for k in range(num_tasks)]))
             else:
@@ -191,10 +179,18 @@ class NetModel(object):
         return self._io.num_tasks
 
     @property
-    def solver_path(self):
-        """ Will save as solver_path/train_val.prototxt, 
-            or solver_path/test.prototxt """
-        return self._solver_path
+    def path(self):
+        """ Will save as path/model_name/train_val.prototxt, 
+            or path/model_name/test.prototxt """
+        return self._path
+
+    @property
+    def model_name(self):
+        return self._model_name
+
+    @property
+    def fullpath(self):
+        return osp.join(self.path, self.model_name)
 
     @property
     def deploy_net(self):
@@ -212,16 +208,21 @@ class NetModel(object):
     def io(self):
         return self._io
 
-    def save_model_file(self, deploy=False):
+    def to_proto(self, deploy=False):
         """ Need different inputs for deploy or not """
+        # check if the folder exists, if not create a new folder. 
+        folder = self.fullpath
+        if not osp.isdir(folder):
+            os.mkdir(folder)
+
         if deploy == True:
             self.update_deploy_net()
-            fn = osp.join(self.solver_path, 'test.prototxt')
+            fn = osp.join(folder, 'test.prototxt')
             with open(fn, 'w') as f:
                 f.write(str(self.deploy_net.to_proto()))
         else:
             self.update_trainval_net()
-            fn = osp.join(self.solver_path, 'train_val.prototxt')
+            fn = osp.join(folder, 'train_val.prototxt')
             with open(fn, 'w') as f:
                 f.write(str(self.val_net.to_proto()))
                 f.write(str(self.train_net.to_proto()))   

@@ -91,7 +91,7 @@ class MultiLabelIO(ModelIO):
             filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
             # number of outputs for a task is the number of labels inside the task. 
             lh.add_fc(net, bottom=bottom_dict[k], name=blob_name, param_name=filter_names, 
-                nout=len(self.class_groups[k]), lr_factor=1, std=0.01)
+                nout=len(self.class_groups[k]), lr_factor=1)
             task_layer_list.append(net[blob_name])
 
         # concatenate layers in the order specified by task_layer_list, compute the sigmoid

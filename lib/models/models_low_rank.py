@@ -17,14 +17,23 @@ class ModelsLowRank(NetModel):
     # default parameters for convolutional layers
     _default_conv_k = [7, 5, 3, 3, 3]   # kernel size
     _default_conv_ks = [2, 2, 1, 1, 1]  # kernel stride
+    _default_conv_pad = [0, 0, 0, 0, 0] # zero padding
+    # default parameters for pooling layers
+    _default_pool_k = [2,2,2]   # kernel size
+    _default_pool_ks = [2,2,2]   # kernel stride
+    _default_pool_pad = [0,0,0]  # zero padding
+    # default dropout parameters
+    _default_dropout_ratio = [0.5,0.5]
     # layers that requires special transformations
     _default_include_lrn = [0, 1]
     _default_include_pooling = [0,1,4]
-    _default_include_dropout = [5, 6]
+    _default_include_dropout = [5,6]
 
-    def __init__(self, model_name, solver_path, io, num_layers=7, 
+    def __init__(self, model_name, path, io, num_layers=7, 
         num_filters=_default_num_filters, num_outputs=_default_num_outputs, 
-        conv_k=_default_conv_k, conv_ks=_default_conv_ks, include_lrn=_default_include_lrn, 
+        conv_k=_default_conv_k, conv_ks=_default_conv_ks, conv_pad=_default_conv_pad,
+        pool_k=_default_pool_k, pool_ks=_default_pool_ks, pool_pad=_default_pool_pad,
+        dropout_ratio=_default_dropout_ratio, include_lrn=_default_include_lrn, 
         include_pooling=_default_include_pooling, include_dropout=_default_include_dropout):
         """
             Initialize a network model with low-rank structure.
@@ -34,19 +43,26 @@ class ModelsLowRank(NetModel):
                             (for a single branch).
         """
         # initialize base class
-        NetModel.__init__(self, model_name, solver_path, io, num_layers)
+        NetModel.__init__(self, model_name, path, io, num_layers)
         # options in the architecture
         self._num_filters = num_filters
         self._num_outputs = num_outputs
         self._conv_k = conv_k
         self._conv_ks = conv_ks
+        self._conv_pad = conv_pad
+        self._pool_k = pool_k
+        self._pool_ks = pool_ks
+        self._pool_pad = pool_pad
+        self._dropout_ratio = dropout_ratio
         self._include_lrn = include_lrn
         self._include_pooling = include_pooling
         self._include_dropout = include_dropout
 
     def _layer_type(self, i):
         """Return type of the layer """
-        if i >= len(self._num_outputs['conv']):
+        if i == self.num_layers:
+            return 'output'
+        elif i >= len(self._num_outputs['conv']):
             return 'fc'
         else:
             return 'conv'
@@ -62,7 +78,13 @@ class ModelsLowRank(NetModel):
 
     def _add_output_layers(self, net, bottom_dict, deploy):
         """ Add the loss layers """
-        self.io.add_output(net, bottom_dict=bottom_dict, deploy=deploy)
+        new_bottom_dict = {}
+        i=self.num_layers
+        for j in xrange(self.num_cols_at(i)):
+            for k in xrange(self.num_branch_at(i,j)):
+                new_bottom_dict[self.tops_at(i,j,k)] = bottom_dict[j]
+
+        self.io.add_output(net, bottom_dict=new_bottom_dict, deploy=deploy)
 
     def _add_intermediate_layers(self, net, data):
         """ Add intermediate layers to the network. """
@@ -87,7 +109,7 @@ class ModelsLowRank(NetModel):
             filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
             # basis filter
             lh.add_conv(net, bottom=bottom_dict[j], name=blob_name, param_name=filter_names, k=self._conv_k[i], 
-                ks=self._conv_ks[i], pad=0, nout=self._num_filters['conv'][i])
+                ks=self._conv_ks[i], pad=self._conv_pad[i], nout=self._num_filters['conv'][i])
             for k in xrange(self.num_branch_at(i,j)):
                 br_name = names['agg'][k]
                 agg_names = {'weights': br_name+'_w', 'bias': br_name+'_b'}
@@ -105,7 +127,10 @@ class ModelsLowRank(NetModel):
                 # add max pooling if necessary
                 if use_pooling:
                     pool_name = 'pool'+self._post_fix_at(i,j,k)
-                    lh.add_maxpool(net, bottom=net[br_name], name=pool_name, k=2, ks=2, pad=0)
+                    pool_idx = self._include_pooling.index(i)
+                    lh.add_maxpool(net, bottom=net[br_name], name=pool_name, 
+                        k=self._pool_k[pool_idx], ks=self._pool_ks[pool_idx], 
+                        pad=self._pool_pad[pool_idx])
                     # if pooling is used, the feature map has a different name
                     new_bottom_dict[self.tops_at(i,j,k)] = net[pool_name]
 
@@ -135,7 +160,9 @@ class ModelsLowRank(NetModel):
                 lh.add_relu(net, bottom=net[br_name], name='relu'+self._post_fix_at(i,j,k))
                 # add Dropout if necessary
                 if use_dropout:
-                    lh.add_dropout(net, bottom=net[br_name], name='drop'+self._post_fix_at(i,j,k))
+                    drop_idx = self._include_dropout.index(i)
+                    lh.add_dropout(net, bottom=net[br_name], name='drop'+self._post_fix_at(i,j,k),
+                        dropout_ratio=self._dropout_ratio[drop_idx])
 
         return new_bottom_dict
 
@@ -179,24 +206,17 @@ if __name__ == '__main__':
     import os.path as osp
     from model_io import MultiLabelIO
 
-    p1 = osp.join(os.getcwd(), 'default')
-    p2 = osp.join(os.getcwd(), 'branch')
-    if not osp.isdir(p1):
-        os.mkdir(p1)
-    if not osp.isdir(p2):
-        os.mkdir(p2)
-
     # Save default model
     io = MultiLabelIO(class_groups=[[0,1],[2,3]])
-    default = ModelsLowRank(model_name='5-layer', solver_path=p1, io=io)
-    default.save_model_file(deploy=False)
-    default.save_model_file(deploy=True)
+    default = ModelsLowRank(model_name='default_5-layer', path='', io=io)
+    default.to_proto(deploy=False)
+    default.to_proto(deploy=True)
 
     # Create a branch
-    branch = ModelsLowRank(model_name='5-layer', solver_path=p2, io=io)
-    changes = branch.insert_branch((6,0), [[0],[1]])
+    branch = ModelsLowRank(model_name='branch_5-layer', path='', io=io)
+    changes = branch.insert_branch((7,0), [[0],[1]])
     print changes['blobs']
     print changes['branches']
     # Save new model
-    branch.save_model_file(deploy=False)
-    branch.save_model_file(deploy=True)
+    branch.to_proto(deploy=False)
+    branch.to_proto(deploy=True)

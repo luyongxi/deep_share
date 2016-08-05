@@ -8,20 +8,20 @@ from utils.timer import Timer
 from utils.config import cfg
 from sklearn.cluster import SpectralClustering
 
-def Error2ECM(err):
-    """ Given an error matrix, return a error correlation matrix.
-        err: N by C matrix in {0,1}, 0 means no error. 
-        ecm: C by C matrix in [0, \infinty).
+def Binary2Corr(label):
+    """ Given an binary label matrix, convert it to correlation matrix.
+        label: N by C matrix in {0,1}. 
+        cm: C by C matrix in [-1,1].
     """
      # covert to {-1, 1} format
-    err = 2.0*err-1
-    ecm = np.dot(err.transpose(), err)
-    N = ecm.shape[0]
-    ecm = ecm/N 
-    return ecm
+    label = 2.0*label-1.0
+    cm = np.dot(label.transpose(), label)
+    N = label.shape[0]
+    cm = cm/N
+    return cm
 
-def MultiLabel_ECM(net, imdb, postfix='', cls_idx=None):
-    """ Get Multi-label Error Correlation Matrix (ECM) """
+def MultiLabel_CM(net, imdb, postfix='', cls_idx=None, type='ecm'):
+    """ Get Multi-label Label Correlation Matrix (LCM) """
     # class list is an ordered list of class index (onto the given dataset)
     if cls_idx is None:
         cls_idx = np.arange(imdb.num_classes)
@@ -29,7 +29,7 @@ def MultiLabel_ECM(net, imdb, postfix='', cls_idx=None):
     num_images = imdb.num_images
 
     # iterate over images, collect error vectors
-    err = np.zeros((num_images, num_classes)) # in {0,1} format
+    label = np.zeros((num_images, num_classes)) # in {0,1} format
     timer = Timer()
     for i in xrange(num_images):
         # prepare blobs 
@@ -44,17 +44,20 @@ def MultiLabel_ECM(net, imdb, postfix='', cls_idx=None):
         # get results
         scores = blobs_out[label_name]
         # evaluate the scores
-        err[i,:] = imdb.evaluate(scores, np.array([i]), cls_idx)
+        if type == 'ecm':
+            label[i,:] = imdb.evaluate(scores, np.array([i]), cls_idx)
+        elif type == 'lcm':
+            label[i,:] = (scores>0.5).astype(np.float32, copy=False)
         # print infos
         print 'Image {}/{} ::: speed: {:.3f}s /iter'.format(i, num_images, timer.average_time)
 
     # get error correlation matrix
-    print 'Computing error correlation matrix...'
-    ecm = Error2ECM(err)
+    print 'Computing {}...'.format(type)
+    cm = Binary2Corr(label)
     
-    return ecm
+    return cm
 
-def ClusterECM(ecm, k, imdb, cls_idx):
+def ClusterAffinity(aff, k, imdb, cls_idx):
     """ Cluster error correlation matrix using spectral clustering into k cluster, 
         show the class labels in each cluster. 
     """
@@ -63,7 +66,7 @@ def ClusterECM(ecm, k, imdb, cls_idx):
                                   eigen_solver='arpack',
                                   affinity="precomputed")
     print 'Performing clustering...'
-    labels = spectral.fit_predict(ecm+1.0)
+    labels = spectral.fit_predict(aff)
 
     # print out all labels
     for i in xrange(k):

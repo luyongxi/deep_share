@@ -9,11 +9,11 @@ import os.path as osp
 class DynamicSolver(object):
     """This class represents a solver prototxt file """
 
-    def __init__(self, net, base_lr=0.01, lr_policy="step", 
+    def __init__(self, path='', base_lr=0.01, lr_policy="step", 
         gamma=0.1, stepsize=20000, momentum=0.9, weight_decay=0.0005, 
         snapshot_prefix='default'):
 
-        self._net = net
+        self._net = osp.join(path, 'train_val.prototxt')
         self._base_lr = base_lr
         self._lr_policy = lr_policy
         self._gamma = gamma
@@ -22,7 +22,11 @@ class DynamicSolver(object):
         self._weight_decay = weight_decay
         self._snapshot_prefix = snapshot_prefix
 
-    def to_proto(self, solver_path=''):
+    def solver_file(self):
+        solver_path = osp.dirname(self._net)
+        return osp.join(solver_path, 'solver.prototxt')
+
+    def to_proto(self):
         """ Save a solver.prototxt file to the specified path """
 
         solver = caffe_pb2.SolverParameter()
@@ -42,11 +46,13 @@ class DynamicSolver(object):
         solver.test_iter.append(0)
         solver.test_interval = 1000
 
-        fn = osp.join(solver_path, 'solver.prototxt')
-        with open(fn, 'w') as f:
+        solver_path = osp.dirname(self._net)
+        if not osp.isdir(solver_path):
+            os.mkdir(solver_path)
+        with open(self.solver_file(), 'w') as f:
             f.write(text_format.MessageToString(solver))
 
 if __name__ == '__main__':
     # test by generating a default solver
-    ds = DynamicSolver('train_val.prototxt')
+    ds = DynamicSolver()
     ds.to_proto()

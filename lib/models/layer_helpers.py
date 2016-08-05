@@ -1,9 +1,7 @@
 # Written by Yongxi Lu
 
 """ Helper functions to add layers to the network. """
-import sys
-import os.path as osp
-
+import caffe
 from caffe import layers as L
 from caffe import params as P
 from math import sqrt
@@ -24,11 +22,13 @@ def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=N
         stride=ks, pad=pad, num_output=nout, bias_term=True, weight_filler=weight_filler, 
         bias_filler=bias_filler))
 
-def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01):
+def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=None):
     """Add a fully-connected layer """
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
     # weight filler
+    if std is None:
+        std = sqrt(2.0/(nout))
     weight_filler = {'type': 'gaussian', 'std': std}
     bias_filler = {'type': 'constant', 'value': 0}
     # set up the layer

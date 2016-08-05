@@ -5,7 +5,7 @@
 """ Test clustering of tasks """
 
 import _init_paths
-from att.cluster import MultiLabel_ECM, ClusterECM
+from att.cluster import MultiLabel_CM, ClusterAffinity
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 import caffe
@@ -83,5 +83,12 @@ if __name__ == '__main__':
         cls_idx = None
 
     if args.method == 'ecm':
-        ecm = MultiLabel_ECM(net, imdb=imdb, cls_idx=cls_idx)
-        ClusterECM(ecm, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+        # error correlation matrix
+        ecm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='ecm')
+        # ClusterAffinity(ecm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+        ClusterAffinity(abs(ecm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)        
+    elif args.method == 'lcm':
+        # label correlation matrix
+        lcm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='lcm')
+        # ClusterAffinity(lcm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+        ClusterAffinity(abs(lcm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)

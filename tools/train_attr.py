@@ -4,45 +4,27 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-"""
-Train atribute classifier
-"""
-
-# TODO: transform this function to allow it to dynamically generate models, based on current
-# preferences. Both the solver file and the model file can be easily created in a dynamic way.
-# In addition, do we need to have config files, or should we simply replace them with options
-# that are directly input as scripts?
-
-# Possibly, options should save configurations that are relatively fixed, and should only be
-# changed whenever we change the dataset. 
-
-# Options that need to be dynamically changed include learning rate (and other options concerning the training), 
-# task assignment (when we use the same datasets), the structure of the network etc. Some of these are used
-# to be controlled by the prototxt files. 
-
-# We should provide options to specify solver. But if solvers are not provided, we use the options provided from
-# the argument lists. If some or all arguments are omitted and the solver file is not provided, we use the defalut
-# values. 
-
-# Concerning the network architecture, we probably should hava an architecture factory (jsut as we did for dataset), 
-# and have user specify which initial architecture to use.
-
+"""Train atribute classifier """
 
 import _init_paths
 from att.train import train_attr
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
+from models.factory import get_models, get_models_dir
+from models.solver import DynamicSolver
+from models.model_io import MultiLabelIO
 import caffe
 import argparse
 import pprint
 import numpy as np
 import sys, os
+import os.path as osp
 
 def parse_args():
     """
     Parse input arguments
     """
-    parser = argparse.ArgumentParser(description="Train a model for Facial Attribute Classification")
+    parser = argparse.ArgumentParser(description="Train a model for Attribute Classification")
     parser.add_argument('--gpu', dest='gpu_id',
                         help='GPU device id to use [None]',
                         default=None, type=int)
@@ -76,6 +58,31 @@ def parse_args():
     parser.add_argument('--infix', dest='infix',
                         help='additional infix to add',
                         default='',type=str)
+    # options concerning solver, will be overriden if --solver is specified. 
+    parser.add_argument('--base_lr', dest='base_lr',
+                        help='base learning rate',
+                        default=0.01,type=float)
+    parser.add_argument('--lr_policy', dest='lr_policy',
+                        help='learning rate policy',
+                        default='step', type=str)
+    parser.add_argument('--gamma', dest='gamma',
+                        help='gamma in SGD solver',
+                        default=0.1, type=float)
+    parser.add_argument('--stepsize', dest='stepsize',
+                        help='stepsize to change learning rate',
+                        default=20000, type=int)
+    parser.add_argument('--momentum', dest='momentum',
+                        help='momentum in SGD solver',
+                        default=0.9, type=float)
+    parser.add_argument('--weight_decay', dest='weight_decay',
+                        default=0.0005, type=float)
+    parser.add_argument('--snapshot_prefix', dest='snapshot_prefix',
+                        default='default', type=str)
+    # network model to use, will be overriden if --solver is specified.  
+    parser.add_argument('--model', dest='model',
+                        default='low-vgg-m', type=str)
+    parser.add_argument('--loss', dest='loss',
+                        default='Sigmoid', type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -122,6 +129,25 @@ if __name__ == '__main__':
     if args.cls_id is not None:
         class_id = [int(id) for id in args.cls_id.split(',')]
     else:
-        class_id = None
+        class_id = range(imdb['train'].num_classes)
+
+    # if solver file is not specified, dynamically generate one based on options. 
+    if args.solver is None:
+        # io object
+        io = MultiLabelIO(class_groups=[[i] for i in class_id], loss_layer=args.loss)
+        path = osp.join(get_models_dir(), str(os.getpid()))
+        if not osp.isdir(path):
+            os.mkdir(path)
+        # create solver and model
+        model = get_models(args.model, dict(io=io, model_name=args.model, path=path))
+        solver = DynamicSolver(model.fullpath, base_lr=args.base_lr, lr_policy=args.lr_policy, 
+            gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
+            snapshot_prefix=args.snapshot_prefix)
+        # save files
+        model.to_proto(deploy=False)
+        solver.to_proto()
+        args.solver = solver.solver_file()
+
+        print 'Model files saved at {}'.format(model.fullpath)
 
     train_attr(imdb, args.solver, output_dir, args.pretrained_model, args.max_iters, args.base_iter, class_id)
