@@ -1,13 +1,14 @@
 name: "VGG_ILSVRC_16_layers"
+input: "data"
 layer {
   name: "data"
   type: "Python"
   top: "data"
   top: "label"
   python_param {
-    module: "layers.multilabel_data"
-    layer: "MultiLabelData"
-    param_str: "{num_classes: 40, stage: TRAIN}" 
+    module: "layers.singlelabel_data"
+    layer: "SingleLabelData"
+    param_str: "{num_classes: 3, stage: TRAIN}" 
   }
   include: { phase: TRAIN }
 }
@@ -17,9 +18,9 @@ layer {
   top: "data"
   top: "label"
   python_param {
-    module: "layers.multilabel_data"
-    layer: "MultiLabelData"
-    param_str: "{num_classes: 40, stage: VAL}" 
+    module: "layers.singlelabel_data"
+    layer: "SingleLabelData"
+    param_str: "{num_classes: 3, stage: VAL}" 
   }
   include: { phase: TEST }
 }
@@ -27,7 +28,8 @@ layer {
   bottom: "data"
   top: "conv1_1"
   name: "conv1_1"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -35,7 +37,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 64
     pad: 1
@@ -52,7 +53,8 @@ layer {
   bottom: "conv1_1"
   top: "conv1_2"
   name: "conv1_2"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -60,7 +62,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 64
     pad: 1
@@ -88,7 +89,8 @@ layer {
   bottom: "pool1"
   top: "conv2_1"
   name: "conv2_1"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -96,7 +98,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 128
     pad: 1
@@ -113,8 +114,8 @@ layer {
   bottom: "conv2_1"
   top: "conv2_2"
   name: "conv2_2"
-
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -122,7 +123,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 128
     pad: 1
@@ -150,7 +150,8 @@ layer {
   bottom: "pool2"
   top: "conv3_1"
   name: "conv3_1"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -158,7 +159,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 256
     pad: 1
@@ -175,7 +175,8 @@ layer {
   bottom: "conv3_1"
   top: "conv3_2"
   name: "conv3_2"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -183,7 +184,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 256
     pad: 1
@@ -200,7 +200,8 @@ layer {
   bottom: "conv3_2"
   top: "conv3_3"
   name: "conv3_3"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -208,7 +209,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 256
     pad: 1
@@ -236,6 +236,7 @@ layer {
   bottom: "pool3"
   top: "conv4_1"
   name: "conv4_1"
+  type: "Convolution"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -244,8 +245,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-
-  type: "Convolution"
   convolution_param {
     num_output: 512
     pad: 1
@@ -262,7 +261,8 @@ layer {
   bottom: "conv4_1"
   top: "conv4_2"
   name: "conv4_2"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -270,7 +270,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 512
     pad: 1
@@ -287,7 +286,7 @@ layer {
   bottom: "conv4_2"
   top: "conv4_3"
   name: "conv4_3"
- param {
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -295,7 +294,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-
   type: "Convolution"
   convolution_param {
     num_output: 512
@@ -324,6 +322,7 @@ layer {
   bottom: "pool4"
   top: "conv5_1"
   name: "conv5_1"
+  type: "Convolution"
   param {
     lr_mult: 1
     decay_mult: 1
@@ -332,8 +331,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-
-  type: "Convolution"
   convolution_param {
     num_output: 512
     pad: 1
@@ -350,7 +347,8 @@ layer {
   bottom: "conv5_1"
   top: "conv5_2"
   name: "conv5_2"
- param {
+  type: "Convolution"
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -358,7 +356,6 @@ layer {
     lr_mult: 2
     decay_mult: 0
   }
-  type: "Convolution"
   convolution_param {
     num_output: 512
     pad: 1
@@ -376,7 +373,7 @@ layer {
   top: "conv5_3"
   name: "conv5_3"
   type: "Convolution"
- param {
+  param {
     lr_mult: 1
     decay_mult: 1
   }
@@ -411,12 +408,12 @@ layer {
   bottom: "pool5"
   top: "fc6"
   name: "fc6"
- param {
-    lr_mult: 10
+  param {
+    lr_mult: 1
     decay_mult: 1
   }
   param {
-    lr_mult: 20
+    lr_mult: 2
     decay_mult: 0
   }
   type: "InnerProduct"
@@ -443,12 +440,12 @@ layer {
   bottom: "fc6"
   top: "fc7"
   name: "fc7"
- param {
-    lr_mult: 10
+  param {
+    lr_mult: 1
     decay_mult: 1
   }
   param {
-    lr_mult: 20
+    lr_mult: 2
     decay_mult: 0
   }
   type: "InnerProduct"
@@ -473,53 +470,40 @@ layer {
 }
 layer {
   bottom: "fc7"
-  top: "score"
-  name: "score"
- param {
-    lr_mult: 10
+  top: "fc8-3"
+  name: "fc8-3"
+  param {
+    lr_mult: 1
     decay_mult: 1
   }
   param {
-    lr_mult: 20
+    lr_mult: 2
     decay_mult: 0
   }
   type: "InnerProduct"
   inner_product_param {
-    num_output: 40
-  weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
+    num_output: 3
   }
 }
 layer {
-  name: "prob"
-  type: "Sigmoid"
-  bottom: "score"
+  bottom: "fc8-3"
   top: "prob"
+  name: "prob"
+  type: "Softmax"
 }
 layer {
-  bottom: "score"
-  bottom: "label"
   name: "loss"
-  type: "SigmoidCrossEntropyLoss"
+  type: "SoftmaxWithLoss"
+  bottom: "fc8-3"
+  bottom: "label"
+  top: "loss"
   loss_weight: 1
   include: { phase: TRAIN }
 }
 layer {
-  name: "error"
-  type: "Python"
+  name:"acc"
+  type: "Accuracy"
   bottom: "prob"
   bottom: "label"
-  top: "error"
-  python_param {
-    module: "layers.multilabel_err"
-    layer: "MultiLabelErr"
-  }
+  top: "acc"
 }
-
- 

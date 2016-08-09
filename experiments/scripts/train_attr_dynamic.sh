@@ -2,8 +2,9 @@
 
 iters=$1
 base_lr=$2
-loss=$3
-model=$4
+clip_gradients=$3
+loss=$4
+model=$5
 
 # Need a better way to handel cases where files are corrupted. 
 
@@ -18,12 +19,14 @@ echo Logging output to "$LOG"
 
 cd ../..
 
-time ./tools/train_attr.py --gpu 0 \
+time ./tools/train_multi.py --gpu 0 \
     --traindb celeba_train \
     --valdb celeba_val \
     --iters $iters \
     --infix [base_lr=$2] \
     --base_lr $base_lr \
+    --clip_gradients $clip_gradients \
     --loss $loss \
     --model $model \
-    --snapshot_prefix $model-facial-attr
+    --snapshot_prefix $model-facial-attr-$loss \
+    --mean_file data/cache/celeba_trainval_mean_file.pkl

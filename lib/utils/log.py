@@ -14,7 +14,7 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-def parse_mle_and_plot(filename, splits, output='loss.png', run_length=1, max_iters=None, epoch_size=None, max_y=None):
+def parse_mle_and_plot(filename, splits, metric='error', output='loss.png', run_length=1, max_iters=None, epoch_size=None, max_y=None):
     """ parse the mle log for a particular split, output file at the output location """    
 
     # parse from files
@@ -24,7 +24,7 @@ def parse_mle_and_plot(filename, splits, output='loss.png', run_length=1, max_it
         iters[split] = []
         err[split] = []
         for fn in filename:
-            it, v = parse_mle(fn, split)
+            it, v = parse_mle(fn, split, metric)
             iters[split].append(it)
             err[split].append(v)
         # take average
@@ -60,12 +60,12 @@ def parse_mle_and_plot(filename, splits, output='loss.png', run_length=1, max_it
 
     plot_mle_mean(iters, err, output, max_y)
 
-def parse_mle(filename, split):
+def parse_mle(filename, split, metric):
     """ parse mle log for a particular split """
     
     iters = []
     err = []
-    pattern = 'Iteration [0-9]*: {} error = \[[0-9.\ ]*\]'.format(split)
+    pattern = 'Iteration [0-9]*: {} {} = \[[0-9.\ ]*\]'.format(split, metric)
     with open(filename) as f:
         data = ' '.join([line.replace('\n', '') for line in f])
         match = re.findall(pattern, data)

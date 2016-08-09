@@ -7,7 +7,7 @@
 """Train atribute classifier """
 
 import _init_paths
-from att.train import train_attr
+from multilabel.train import train_model
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 from models.factory import get_models, get_models_dir
@@ -19,6 +19,7 @@ import pprint
 import numpy as np
 import sys, os
 import os.path as osp
+import cPickle
 
 def parse_args():
     """
@@ -36,6 +37,9 @@ def parse_args():
                         default=40000, type=int)
     parser.add_argument('--weights', dest='pretrained_model',
                         help='initialize with pretrained model weights',
+                        default=None, type=str)
+    parser.add_argument('--mean_file', dest='mean_file',
+                        help='the path to the mean file to be used',
                         default=None, type=str)
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
@@ -76,6 +80,8 @@ def parse_args():
                         default=0.9, type=float)
     parser.add_argument('--weight_decay', dest='weight_decay',
                         default=0.0005, type=float)
+    parser.add_argument('--clip_gradients', dest='clip_gradients',
+                        default=None, type=float)
     parser.add_argument('--snapshot_prefix', dest='snapshot_prefix',
                         default='default', type=str)
     # network model to use, will be overriden if --solver is specified.  
@@ -104,6 +110,12 @@ if __name__ == '__main__':
 
     # add additional infix if necessary
     cfg.TRAIN.SNAPSHOT_INFIX += args.infix
+
+    # use mean file if provided
+    if args.mean_file is not None:
+        with open(args.mean_file, 'rb') as fid:
+            cfg.PIXEL_MEANS = cPickle.load(fid)
+            print 'mean values loaded from {}'.format(args.mean_file)
 
     print('Using config:')
     pprint.pprint(cfg)
@@ -134,15 +146,13 @@ if __name__ == '__main__':
     # if solver file is not specified, dynamically generate one based on options. 
     if args.solver is None:
         # io object
-        io = MultiLabelIO(class_groups=[[i] for i in class_id], loss_layer=args.loss)
+        io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
         path = osp.join(get_models_dir(), str(os.getpid()))
-        if not osp.isdir(path):
-            os.mkdir(path)
         # create solver and model
         model = get_models(args.model, dict(io=io, model_name=args.model, path=path))
         solver = DynamicSolver(model.fullpath, base_lr=args.base_lr, lr_policy=args.lr_policy, 
             gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
-            snapshot_prefix=args.snapshot_prefix)
+            clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
         # save files
         model.to_proto(deploy=False)
         solver.to_proto()
@@ -150,4 +160,4 @@ if __name__ == '__main__':
 
         print 'Model files saved at {}'.format(model.fullpath)
 
-    train_attr(imdb, args.solver, output_dir, args.pretrained_model, args.max_iters, args.base_iter, class_id)
+    train_model(imdb, args.solver, output_dir, args.pretrained_model, args.max_iters, args.base_iter, class_id)

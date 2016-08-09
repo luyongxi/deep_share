@@ -2,8 +2,7 @@
 # Written by Yongxi Lu
 # --------------------------------------------------------
 
-"""A Python layer for attribute classification input
-
+"""A Python layer for Single Label Classificaiton input
 """
 
 import caffe
@@ -12,8 +11,8 @@ from utils.blob import im_list_to_blob
 import numpy as np
 import yaml
 
-class AttributeData(caffe.Layer):
-    """Attribute data layer."""
+class SingleLabelData(caffe.Layer):
+    """Multilabel data layer."""
 
     def _shuffle_img_inds(self):
         """Randomly permute the training images."""
@@ -48,9 +47,8 @@ class AttributeData(caffe.Layer):
         """ Prepare a blob of images given inds """
         filelist = [self._imdb.image_path_at(i) for i in inds]
         im_blob = im_list_to_blob(filelist, cfg.PIXEL_MEANS, cfg.SCALE)
-        attr_all = self._imdb.gtdb['attr'][inds, :].astype(np.float32, copy=False)
-        attr_gt = attr_all[:, self._class_list]
-        blobs = {'data': im_blob, 'label': attr_gt}
+        label = self._imdb.gtdb['label'][inds].astype(np.float32, copy=False)
+        blobs = {'data': im_blob, 'label': label}
         return blobs
 
     def set_imdb(self, imdb):
@@ -58,13 +56,6 @@ class AttributeData(caffe.Layer):
         self._imdb = imdb
         if self._stage == 'TRAIN':  
             self._shuffle_img_inds()
-
-    def set_classlist(self, class_list):
-        """ Change the list of classes to test """
-        self._class_list = class_list
-        assert len(self._class_list) == self._num_classes, \
-            'Number of classes does not match class list: {} vs {}'.\
-            format(len(self._classlist), self._num_classes)
   
     def setup(self, bottom, top):
         """Setup the AttributeData."""
@@ -75,15 +66,6 @@ class AttributeData(caffe.Layer):
         self._num_classes = layer_params['num_classes']
         self._stage = layer_params['stage']
 
-        # load class list if provided, otherwise set it to default
-        if ['class_list'] in layer_params.keys():
-            self._class_list = np.array(layer_params['class_list'])
-            assert len(self._class_list) == self._num_classes, \
-                'Number of classes does not match class list: {} vs {}'.\
-                format(len(self._classlist), self._num_classes)
-        else:
-            self._class_list = np.arange(self._num_classes)
-
         self._name_to_top_map = {
             'data': 0,
             'label': 1}
@@ -91,8 +73,8 @@ class AttributeData(caffe.Layer):
         # data blob: holds a batch of N images, each with 3 channels
         top[0].reshape(cfg.TRAIN.IMS_PER_BATCH, 3, cfg.SCALE, cfg.SCALE)
 
-        # label blob: holds a batch of N labels, each with _num_classes attributes
-        top[1].reshape(cfg.TRAIN.IMS_PER_BATCH, self._num_classes)
+        # label blob: holds a batch of labels
+        top[1].reshape(cfg.TRAIN.IMS_PER_BATCH)
 
     @property
     def num_classes(self):

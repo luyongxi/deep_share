@@ -33,7 +33,7 @@ class NetBlob(object):
     def set_tasks(self, branch_idx, tasks):
         for i in xrange(len(branch_idx)):
             self.tasks[branch_idx[i]] = tasks[i]
-
+ 
     def is_edge(self):
         """ Is the blob at the edge of the network (has branches)?"""
         return self.num_tops()>1
@@ -87,7 +87,7 @@ class NetModel(object):
             else:
                 top_idx = [0]
                 # flatten the tasks list at the top blob
-                tasks = [[t for b in self._net_graph[j+1] for t in b.tasks]]
+                tasks = [[t for b in self._net_graph[j+1] for ts in b.tasks for t in ts]]
                 self._net_graph[j].append(NetBlob(top_idx=top_idx, tasks=tasks))
 
     def insert_branch(self, idx, split):
@@ -112,22 +112,22 @@ class NetModel(object):
         bottoms = self._net_graph[idx[0]-1]
         bottom_idx = [i for i in xrange(len(bottoms)) if idx[1] in bottoms[i].top_idx][0]  # a singleton
         branch_idx = bottoms[i].top_idx.index(idx[1])
-        # create new blobs at the current layer
+        # create new blobs (columns) at the current layer
         # save original blob
         orig_blob = self._net_graph[idx[0]][idx[1]]
         top_idx = orig_blob.top_idx 
         tasks = orig_blob.tasks
-        # left branch
+        # left column
         self._net_graph[idx[0]][idx[1]] = \
             NetBlob(top_idx=[top_idx[i] for i in left], tasks=[tasks[i] for i in left])
-        # right branch
+        # right column
         self._net_graph[idx[0]].append(
             NetBlob(top_idx=[top_idx[i] for i in right], tasks=[tasks[i] for i in right]))
         right_idx = len(self._net_graph[idx[0]])-1
         # add a new branch at the bottom layer
         b_blobs = bottoms[bottom_idx]
-        b_blobs.set_tasks(branch_idx=[branch_idx], tasks=[tasks[i] for i in left])
-        b_blobs.add_top(top_idx=[right_idx], tasks=[tasks[i] for i in right])
+        b_blobs.set_tasks(branch_idx=[branch_idx], tasks=[[t for i in left for t in [tasks[i]]]])
+        b_blobs.add_top(top_idx=[right_idx], tasks=[[t for i in right for t in [tasks[i]]]])
         # log changes
         changes = {'blobs':{}, 'branches':{}}
         changes['blobs'] = {(idx[0],idx[1]): [(idx[0],idx[1]), (idx[0],right_idx)]}
@@ -154,6 +154,11 @@ class NetModel(object):
             return self._net_graph[i][j].tasks
         else:
             return self._net_graph[i][j].tasks[k]
+
+    def num_tasks_at(self, i, j, k=None):
+        """ Return the number of tasks associated with layer i, column j, [branch k] """
+        tasks = self.tasks_at(i,j,k)
+        return len([t for ts in tasks for t in ts])
 
     def tops_at(self, i, j, k=None):
         """Return the indexing into the top blob of layer i, column j, [branch k] """        
@@ -212,8 +217,8 @@ class NetModel(object):
         """ Need different inputs for deploy or not """
         # check if the folder exists, if not create a new folder. 
         folder = self.fullpath
-        if not osp.isdir(folder):
-            os.mkdir(folder)
+        if not osp.exists(folder):
+            os.makedirs(folder)
 
         if deploy == True:
             self.update_deploy_net()

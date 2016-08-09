@@ -5,7 +5,7 @@
 """ Test clustering of tasks """
 
 import _init_paths
-from att.cluster import MultiLabel_CM, ClusterAffinity
+from multilabel.cluster import MultiLabel_CM, ClusterAffinity
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 import caffe
@@ -43,6 +43,9 @@ def parse_args():
     parser.add_argument('--n_cluster', dest='n_cluster',
                         help='number of clusters',
                         default=2, type=int)
+    parser.add_argument('--mean_file', dest='mean_file',
+                        help='the path to the mean file to be used',
+                        default=None, type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -59,6 +62,12 @@ if __name__ == '__main__':
 
     if args.cfg_file is not None:
         cfg_from_file(args.cfg_file)
+
+    # use mean file if provided
+    if args.mean_file is not None:
+        with open(args.mean_file, 'rb') as fid:
+            cfg.PIXEL_MEANS = cPickle.load(fid)
+            print 'mean values loaded from {}'.format(args.mean_file)
 
     print('Using config:')
     pprint.pprint(cfg)

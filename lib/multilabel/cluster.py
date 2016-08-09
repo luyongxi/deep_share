@@ -1,6 +1,6 @@
 # Written by Yongxi Lu
 
-""" Experiment and visualize clustering of attribute classes (as tasks) """
+""" Experiment and visualize clustering of class labels """
 
 import numpy as np
 from utils.blob import im_list_to_blob

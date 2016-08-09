@@ -12,8 +12,7 @@ import yaml
 
 def compute_mle(scores, targets):
     """ Compute multi-label error """
-    labels = (scores>0.5)
-    err = np.mean((labels != targets), axis=0)
+    err = np.mean(((scores>=0.5) != targets), axis=0)
     return err
 
 class MultiLabelErr(caffe.Layer):

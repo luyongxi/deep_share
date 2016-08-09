@@ -56,14 +56,6 @@ class Imdb(object):
         """ absolute path """
         return [self._image_list[i] for i in inds]
 
-    # def image_gt_at(self, i):
-    #     """ return ground truth"""
-        
-
-    # def image_gt_at_inds(self, inds):
-    #     """ return ground truth"""
-
-
     @property
     def cache_path(self):
         cache_path = osp.abspath(osp.join(datasets.ROOT_DIR, 'data', 'cache'))

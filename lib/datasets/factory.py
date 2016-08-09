@@ -1,4 +1,4 @@
-#!/bin/bash/env python
+#!/usr/bin/env python
 
 # Written by Yongxi Lu
 
@@ -8,6 +8,7 @@ Factory method for easily getting imdbs by name.
 
 # import datasets
 from celeba import CelebA
+from celeba_plus_webcam_cls import CelebA_Plus_Webcam_Cls
 
 # import utilities
 import sys
@@ -28,6 +29,11 @@ for split in ['train', 'val', 'test', 'trainval']:
     __sets[name] = (lambda split=split:
                     CelebA(split, align=True))
 
+# setup CelebA+Webcam dataset
+for split in ['train', 'val']:
+    name = 'celeba_plus_webcam_cls_{}'.format(split)
+    __sets[name] = (lambda split=split:
+                    CelebA_Plus_Webcam_Cls(split))
 
 def get_imdb(name):
     """ Get an imdb (image database) by name."""
@@ -51,6 +57,7 @@ if __name__ == '__main__':
     # print out dataset name and confirm the number of classes is correct
     print 'dataset name: {}'.format(imdb.name)
     print 'number of classes {}'.format(imdb.num_classes)
+    print 'number of images {}'.format(imdb.num_images)
     print 'cache path: {}'.format(imdb.cache_path)
     print 'data path: {}'.format(imdb.data_path)
 

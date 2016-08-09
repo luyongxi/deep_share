@@ -33,6 +33,9 @@ def parse_args():
     parser.add_argument('--max_y', dest='max_y',
                         help="maximum value of y axis",
                         default=None, type=float)
+    parser.add_argument('--metric', dest='metric',
+                        help="the type metric used in evaluation",
+                        default='error', type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -48,5 +51,5 @@ if __name__ == '__main__':
     print(args)
     
     if args.log_file is not None:
-        parse_mle_and_plot(args.log_file, ['training','validation'], args.output, 
-            run_length=args.run, max_y=args.max_y)
+        parse_mle_and_plot(args.log_file, ['training','validation'], metric=args.metric, 
+            output=args.output, run_length=args.run, max_y=args.max_y)

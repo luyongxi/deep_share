@@ -7,38 +7,43 @@ from caffe import params as P
 from math import sqrt
 import yaml
 
-def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=None):
+def get_init_params(std):
+    if std == 'linear':
+        weight_filler = {'type': 'xavier'}            
+    elif std == 'ReLu':
+        weight_filler = {'type': 'msra'}
+    else:
+        weight_filler = {'type': 'gaussian', 'std': std}
+
+    bias_filler = {'type': 'constant', 'value': 0}
+    return weight_filler, bias_filler
+
+def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0.01):
     """Add a convolutional layer """
     # names of the parameters
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
     # weight filler
-    if std is None:
-        std = sqrt(2.0/(k*k*nout))
-    weight_filler = {'type': 'gaussian', 'std': std}
-    bias_filler = {'type': 'constant', 'value': 0}
+    weight_filler, bias_filler = get_init_params(std)
     # set up the layer
     net[name] = L.Convolution(bottom, param=param, convolution_param=dict(kernel_size=k, 
         stride=ks, pad=pad, num_output=nout, bias_term=True, weight_filler=weight_filler, 
         bias_filler=bias_filler))
 
-def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=None):
+def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01):
     """Add a fully-connected layer """
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
     # weight filler
-    if std is None:
-        std = sqrt(2.0/(nout))
-    weight_filler = {'type': 'gaussian', 'std': std}
-    bias_filler = {'type': 'constant', 'value': 0}
+    weight_filler, bias_filler = get_init_params(std)
     # set up the layer
     net[name] = L.InnerProduct(bottom, param=param, 
         inner_product_param=dict(num_output=nout, weight_filler=weight_filler, 
         bias_filler=bias_filler))
 
-def add_relu(net, bottom, name):
+def add_relu(net, bottom, name, in_place=True):
     """Add ReLu activation """
-    net[name] = L.ReLU(bottom, in_place=True)
+    net[name] = L.ReLU(bottom, in_place=in_place)
 
 def add_maxpool(net, bottom, name, k, ks, pad):
     """Add max pooling layer """
@@ -50,17 +55,17 @@ def add_lrn(net, bottom, name, local_size, alpha, beta, k):
     net[name] = L.LRN(bottom, local_size=local_size, 
         alpha=alpha, beta=beta, k=k, in_place=True)
 
-def add_dropout(net, bottom, name, dropout_ratio=0.5):
+def add_dropout(net, bottom, name, dropout_ratio=0.5, in_place=True):
     """ Add dropout layer """
-    net[name] = L.Dropout(bottom, dropout_ratio=dropout_ratio, in_place=True)
+    net[name] = L.Dropout(bottom, dropout_ratio=dropout_ratio, in_place=in_place)
 
 def add_concat(net, bottom, name, axis):
     """ Add a concatenation layer along an axis """
     net[name] = L.Concat(*bottom, axis=axis)
 
-def add_sigmoid(net, bottom, name):
+def add_sigmoid(net, bottom, name, in_place=True):
     """Add Sigmoid activation """
-    net[name] = L.Sigmoid(bottom, in_place=True)
+    net[name] = L.Sigmoid(bottom, in_place=in_place)
 
 def add_dummy_data_layer(net, name, dim):
     """Add a dummy data layer """

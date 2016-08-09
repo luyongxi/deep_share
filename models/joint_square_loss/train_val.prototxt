@@ -5,8 +5,8 @@ layer {
   top: "data"
   top: "label"
   python_param {
-    module: "layers.att_data"
-    layer: "AttributeData"
+    module: "layers.multilabel_data"
+    layer: "MultiLabelData"
     param_str: "{num_classes: 40, stage: TRAIN}" 
   }
   include: { phase: TRAIN }
@@ -17,8 +17,8 @@ layer {
   top: "data"
   top: "label"
   python_param {
-    module: "layers.att_data"
-    layer: "AttributeData"
+    module: "layers.multilabel_data"
+    layer: "MultiLabelData"
     param_str: "{num_classes: 40, stage: VAL}" 
   }
   include: { phase: TEST }
