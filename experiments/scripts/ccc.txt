@@ -1,4 +1,4 @@
 jbsub -mem 3g -mail -cores 1+1 -queue x86_short ./train_joint_entropyloss.sh
 
-jbsub -mem 3g -mail -cores 1+1 -queue x86 ./train_attr_dynamic.sh 80000 0.01 20 Sigmoid low-vgg-16 13
+jbsub -mem 3g -mail -cores 1+1 -queue x86 ./train_attr_dynamic.sh 80000 0.001 20 Sigmoid low-vgg-16 13
 # only the fully connected layers are initialized randomly and have low rank factorization. 

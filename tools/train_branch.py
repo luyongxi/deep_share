@@ -4,27 +4,35 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-"""Train multilabel classifier """
+"""Train with branching (currently using only with multilabel classification)"""
 
-# TODO: it seems that ideally we want to have an io factory as well for the sake of managing i/o functions.
-# TODO: the combination of network architecture and io will define the appropriate use of training procedure, 
-# we probably want to abstract out the commanitiy of all training procedures, and then associate them with
-# specialities. At the end of day, we might want to register the model/io/training procedure to a single entitiy, 
-# and then use that to decide which training procedure to call etc. 
+# TODOs:
+# (1) Allow user to decide how many rounds to train. In a naive implementation, the 
+#     program will assume that the user want every round of training to have exaclty the
+#     same training iterations and number of parameters etc.
+# (2) The program need to keep track of the training progress, at snapshot points it should
+#     save not only the model, but also the model file etc. so that training can be resumed.
+#     Since these models all have different train_val.prototxt and test.prototxt, to ensure
+#     that later experiments are possible we should save these prototxt files. To have seperating
+#     we should probably save files in subfolders of the output dir. 
+# Point (2) actually suggest that we should have an overhaul of the naming cache for prototxt
+# files used in training. Instead of putting in inside models/cache which is kind of hard
+# to get, we should probably try to place it alongside with the model file.
+# (3) Naming convention: it seems we should add an infix of the model indicating the round the
+#     training is at. 
+# (4) Design functions and interfaces to decide when and where to branch. 
 
-# It is prudent to keep this function but use this function as a basis for this more general task. We might also
-# want to save this version as a "usable" version before proceeding, because significant code restructuring is 
-# required.
+# In terms of best practices, we should defnitely use cfg file more often to ensure separation
+# of different training situations and avoid corruptions! 
 
-# Also, how do we incorportate the model surgery procedure? Is it possible to regard it as a special way to initialize
-# the model (by somehow changing the initialization procedure in the solver.py?). Note that we may want to save snapshots
-# of this procedure, and write programs capable of resuming the training from every snapshots. 
+# Note that --exp_dir option is provided in the function already!
+
 
 import _init_paths
 from multilabel.train import train_model
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
-from models.factory import get_models
+from models.factory import get_models, get_models_dir
 from models.solver import DynamicSolver
 from models.model_io import MultiLabelIO
 import caffe
@@ -36,9 +44,7 @@ import os.path as osp
 import cPickle
 
 def parse_args():
-    """
-    Parse input arguments
-    """
+    """Parse input arguments """
     parser = argparse.ArgumentParser(description="Train a model for Multilabel Classification")
     parser.add_argument('--gpu', dest='gpu_id',
                         help='GPU device id to use [None]',
@@ -109,6 +115,10 @@ def parse_args():
                         action='store_true')
     parser.add_argument('--loss', dest='loss',
                         default='Sigmoid', type=str)
+    # models related to branching
+    parser.add_argument('--num_rounds', dest='num_rounds',
+                        help='number of branching rounds in training',
+                        default=1, type=int)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -168,7 +178,7 @@ if __name__ == '__main__':
     if args.solver is None:
         # io object
         io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
-        path = osp.join(output_dir, 'prototxt')
+        path = osp.join(get_models_dir(), str(os.getpid()))
         # create solver and model
         model, param_mapping = get_models(args.model, dict(io=io, model_name=args.model, 
             path=path, first_low_rank=args.first_low_rank))
@@ -177,10 +187,10 @@ if __name__ == '__main__':
             clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
         # save files
         model.to_proto(deploy=False)
-        model.to_proto(deploy=True)
         solver.to_proto()
         args.solver = solver.solver_file()
 
+        # TODO: the path to save really depends on the training round we are at!
         print 'Model files saved at {}'.format(model.fullpath)
 
     train_model(imdb, args.solver, output_dir, args.pretrained_model, param_mapping, args.use_svd,  

@@ -29,4 +29,5 @@ time ./tools/train_multi.py --gpu 0 \
     --snapshot_prefix $model-facial-attr-pretrained-$first_low_rank-$loss \
     --first_low_rank $first_low_rank \
     --weights data/pretrained/gender.caffemodel \
+    --exp $model-facial-attr-pretrained-$first_low_rank-$loss \
     --use_svd

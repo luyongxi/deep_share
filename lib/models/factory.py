@@ -32,10 +32,6 @@ def list_models():
     """ List all registred models."""
     return __models.keys()
 
-def get_models_dir():
-    """ Default paths for all models """
-    return osp.abspath(osp.join(osp.dirname(__file__), '..', '..','models','cache'))
-
 def _low_vgg_m_gen(io, model_name, path, first_low_rank=0):
     """ Low rank VGG-M with two fully connected layers. """
     num_filters = {'conv': {0:12, 1:32, 2:64, 3:64, 4:64}, 
