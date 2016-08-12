@@ -7,6 +7,8 @@
 from netmodel import NetModel
 import layer_helpers as lh
 
+# TODO: basis filter parameters should be shared!
+
 class ModelsLowRank(NetModel):
     """ Low rank network """
 
@@ -113,13 +115,14 @@ class ModelsLowRank(NetModel):
             # use basis filter only if num_filters is specified for this layer. 
             if use_basis:
                 blob_name = names['basis']
-                filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
+                blob_param_name = blob_name.split('_')[0]
+                filter_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 # basis filter
                 lh.add_conv(net, bottom=bottom_dict[j], name=blob_name, param_name=filter_names, k=self._conv_k[i], 
                     ks=self._conv_ks[i], pad=self._conv_pad[i], nout=self._num_filters['conv'][i], std='linear')
 
             for k in xrange(self.num_branch_at(i,j)):
-                br_name = names['conv'][k]
+                br_name = names['agg'][k]
                 conv_names = {'weights': br_name+'_w', 'bias': br_name+'_b'}
                 if use_basis:
                     # linear combination
@@ -160,13 +163,14 @@ class ModelsLowRank(NetModel):
             # use basis filter only if num_filters is specified for this layer. 
             if use_basis:
                 blob_name = names['basis']
-                filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
+                blob_param_name = blob_name.split('_')[0]
+                filter_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 # basis filter
                 lh.add_fc(net, bottom=bottom_dict[j], name=blob_name, param_name=filter_names, 
                     nout=self._num_filters['fc'][i], std='linear')
 
             for k in xrange(self.num_branch_at(i,j)):
-                br_name = names['fc'][k]
+                br_name = names['agg'][k]
                 conv_names = {'weights': br_name+'_w', 'bias': br_name+'_b'}
                 if use_basis:
                     # linear combination
@@ -192,9 +196,9 @@ class ModelsLowRank(NetModel):
             Use 1-based indexing. 
         """
         if k is None:
-            return '{}-{}'.format(i+1,j+1)
+            return '{}_{}'.format(i+1,j+1)
         else:
-            return '{}-{}-{}'.format(i+1,j+1,k+1)
+            return '{}_{}_{}'.format(i+1,j+1,k+1)
 
     def names_at_i_j(self, i, j):
         """ Return the name of the parameters at layer i, column j.
@@ -207,10 +211,10 @@ class ModelsLowRank(NetModel):
         basis_param = 'basis'+self._post_fix_at(i,j)
         if self._layer_type(i) == 'conv':
             conv_param = ['conv'+self._post_fix_at(i,j,k) for k in xrange(self.num_branch_at(i,j))]            
-            names = {'basis': basis_param, 'conv': conv_param}
+            names = {'basis': basis_param, 'agg': conv_param}
         elif self._layer_type(i) == 'fc':
             fc_param = ['fc'+self._post_fix_at(i,j,k) for k in xrange(self.num_branch_at(i,j))]            
-            names = {'basis': basis_param, 'fc': fc_param}
+            names = {'basis': basis_param, 'agg': fc_param}
         return names
 
     def update_deploy_net(self):

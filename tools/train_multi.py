@@ -4,7 +4,22 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-"""Train atribute classifier """
+"""Train multilabel classifier """
+
+# TODO: it seems that ideally we want to have an io factory as well for the sake of managing i/o functions.
+# TODO: the combination of network architecture and io will define the appropriate use of training procedure, 
+# we probably want to abstract out the commanitiy of all training procedures, and then associate them with
+# specialities. At the end of day, we might want to register the model/io/training procedure to a single entitiy, 
+# and then use that to decide which training procedure to call etc. 
+
+# It is prudent to keep this function but use this function as a basis for this more general task. We might also
+# want to save this version as a "usable" version before proceeding, because significant code restructuring is 
+# required.
+
+# Also, how do we incorportate the model surgery procedure? Is it possible to regard it as a special way to initialize
+# the model (by somehow changing the initialization procedure in the solver.py?). Note that we may want to save snapshots
+# of this procedure, and write programs capable of resuming the training from every snapshots. 
+
 
 import _init_paths
 from multilabel.train import train_model
@@ -25,7 +40,7 @@ def parse_args():
     """
     Parse input arguments
     """
-    parser = argparse.ArgumentParser(description="Train a model for Attribute Classification")
+    parser = argparse.ArgumentParser(description="Train a model for Multilabel Classification")
     parser.add_argument('--gpu', dest='gpu_id',
                         help='GPU device id to use [None]',
                         default=None, type=int)
@@ -87,6 +102,12 @@ def parse_args():
     # network model to use, will be overriden if --solver is specified.  
     parser.add_argument('--model', dest='model',
                         default='low-vgg-m', type=str)
+    parser.add_argument('--first_low_rank', dest='first_low_rank',
+                        help='the first layer to use low-rank factorization',
+                        default=0, type=int)
+    parser.add_argument('--use_svd', dest='use_svd',
+                        help='use svd to initialize',
+                        action='store_true')
     parser.add_argument('--loss', dest='loss',
                         default='Sigmoid', type=str)
 
@@ -144,12 +165,14 @@ if __name__ == '__main__':
         class_id = range(imdb['train'].num_classes)
 
     # if solver file is not specified, dynamically generate one based on options. 
+    param_mapping = None
     if args.solver is None:
         # io object
         io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
         path = osp.join(get_models_dir(), str(os.getpid()))
         # create solver and model
-        model = get_models(args.model, dict(io=io, model_name=args.model, path=path))
+        model, param_mapping = get_models(args.model, dict(io=io, model_name=args.model, 
+            path=path, first_low_rank=args.first_low_rank))
         solver = DynamicSolver(model.fullpath, base_lr=args.base_lr, lr_policy=args.lr_policy, 
             gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
             clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
@@ -160,4 +183,5 @@ if __name__ == '__main__':
 
         print 'Model files saved at {}'.format(model.fullpath)
 
-    train_model(imdb, args.solver, output_dir, args.pretrained_model, args.max_iters, args.base_iter, class_id)
+    train_model(imdb, args.solver, output_dir, args.pretrained_model, param_mapping, args.use_svd,  
+        args.max_iters, args.base_iter, class_id)

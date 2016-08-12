@@ -85,7 +85,7 @@ class MultiLabelIO(ModelIO):
         for k in xrange(len(bottom_dict)):
             if use_basis:
                 basis_name = 'score_basis_{}'.format(k+1) + self.postfix
-                param_names = {'weights': basis_name+'_w', 'bias': basis_name+'_b'}
+                param_names = {'weights': 'score_basis_w', 'bias': 'score_basis_b'}
                 lh.add_fc(net, bottom=bottom_dict[k][1], name=basis_name, param_name=param_names, 
                     nout=num_filters, lr_factor=1, std='linear')
                 bottom=net[basis_name]

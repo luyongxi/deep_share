@@ -20,10 +20,12 @@ import google.protobuf as pb2
 class MultiLabelSW(SolverWrapper):
     """ Wrapper around Caffe's solver """
     
-    def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None, cls_id=None):
+    def __init__(self, imdb, solver_prototxt, output_dir, 
+        pretrained_model=None, param_mapping=None, use_svd=True, cls_id=None):
         """ Initialize the SolverWrapper. """
 
-        SolverWrapper.__init__(self, imdb, solver_prototxt, output_dir, pretrained_model)
+        SolverWrapper.__init__(self, imdb, solver_prototxt, output_dir, 
+            pretrained_model, param_mapping, use_svd)
 
         # load imdb to layers
         self._solver.net.layers[0].set_imdb(imdb['train'])
@@ -70,12 +72,12 @@ class MultiLabelSW(SolverWrapper):
         if last_snapshot_iter != cur_iter:
             self.snapshot(base_iter)
 
-def train_model(imdb, solver_prototxt, output_dir, pretrained_model=None, max_iters=40000, base_iter=0, cls_id=None):
-    """ 
-    Train a multilabel classification model
-    """
+def train_model(imdb, solver_prototxt, output_dir, pretrained_model=None, param_mapping=None, 
+    use_svd=True, max_iters=40000, base_iter=0, cls_id=None):
+    """Train a multilabel classification model """
 
-    sw = MultiLabelSW(imdb, solver_prototxt, output_dir, pretrained_model=pretrained_model, cls_id=cls_id)
+    sw = MultiLabelSW(imdb, solver_prototxt, output_dir, 
+        pretrained_model=pretrained_model, param_mapping=param_mapping, use_svd=use_svd, cls_id=cls_id)
 
     print 'Solving...'
     sw.train_model(max_iters, base_iter)

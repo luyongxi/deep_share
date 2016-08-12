@@ -20,9 +20,9 @@ import google.protobuf as pb2
 class ClassificationSW(SolverWrapper):
     """ Wrapper around Caffe's solver """
     
-    def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None):
+    def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None, param_mapping=None, use_svd=True):
         """ Initialize the SolverWrapper. """
-        SolverWrapper.__init__(self, imdb, solver_prototxt, output_dir, pretrained_model)
+        SolverWrapper.__init__(self, imdb, solver_prototxt, output_dir, pretrained_model, param_mapping, use_svd)
 
         # load imdb to layers
         self._solver.net.layers[0].set_imdb(imdb['train'])
@@ -69,12 +69,12 @@ class ClassificationSW(SolverWrapper):
         if last_snapshot_iter != cur_iter:
             self.snapshot(base_iter)
 
-def train_model(imdb, solver_prototxt, output_dir, pretrained_model=None, max_iters=40000, base_iter=0):
-    """ 
-    Train a attribute classification model
-    """
+def train_model(imdb, solver_prototxt, output_dir, trained_model=None, 
+    param_mapping=None, use_svd=True ,max_iters=40000, base_iter=0):
+    """Train a attribute classification model """
 
-    sw = ClassificationSW(imdb, solver_prototxt, output_dir, pretrained_model=pretrained_model)
+    sw = ClassificationSW(imdb, solver_prototxt, output_dir, 
+        pretrained_model=pretrained_model, param_mapping=param_mapping, use_svd=use_svd)
 
     print 'Solving...'
     sw.train_model(max_iters, base_iter)

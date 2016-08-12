@@ -25,7 +25,7 @@ cfg = __C
 __C.TRAIN = edict()
 
 # Iterations between snapshots
-__C.TRAIN.SNAPSHOT_ITERS = 5000
+__C.TRAIN.SNAPSHOT_ITERS = 1000
 
 # Perform validation or not
 __C.TRAIN.USE_VAL = True

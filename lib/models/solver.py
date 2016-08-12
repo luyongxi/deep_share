@@ -9,11 +9,13 @@ import os.path as osp
 import os
 import caffe
 from utils.config import cfg
-
+import numpy as np
+from numpy.linalg import svd
 
 class SolverWrapper(object):
     """ Wrapper for a sovler used in training. """
-    def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None):
+    def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None, 
+        param_mapping=None, use_svd=True):
         """ Initialize the SolverWrapper. """
 
         # use output path
@@ -23,13 +25,92 @@ class SolverWrapper(object):
         self._solver = caffe.SGDSolver(solver_prototxt)
         if pretrained_model is not None:
             print ('Loading pretrained model '
-                   'weights from {:s}').format(pretrained_model)
-            self._solver.net.copy_from(pretrained_model)
- 
+               'weights from {:s}').format(pretrained_model)
+            if param_mapping is None:
+                self._solver.net.copy_from(pretrained_model)
+            else:
+                self._load_mapped_params(pretrained_model, param_mapping, use_svd)
+
         # load solver parameters
         self._solver_param = caffe_pb2.SolverParameter()
         with open(solver_prototxt, 'rt') as f:
             pb2.text_format.Merge(f.read(), self._solver_param)
+
+    def _init_params_svd(self, W, k):
+        """ Given input filters, return a set of basis and the linear combination
+            required to approximate the original input filters
+            Input: 
+                W: [dxc] matrix, where c is the input dimension, 
+                    d is the output dimension
+            Output:
+                B: [kxc] matrix, where c is the input dimension, 
+                    k is the maximum rank of output filters
+                L: [dxk] matrix, where k is the maximum rank of the
+                    output filters, d is the output dimension
+
+            Note that k <= min(c,d). It is an error if that is encountered.
+        """
+        d, c = W.shape
+        assert k <= min(c,d), 'k={} is too large for c={}, d={}'.format(k,c,d)
+        # S in this case is a vector with len=K=min(c,d), and U is [d x K], V is [K x c]
+        u, s, v = svd(W, full_matrices=False)
+        # compute square of s -> s_sqrt
+        s_sqrt = np.sqrt(s[:k])
+        # extract L from u
+        B = v[:k, :] * s_sqrt[:, np.newaxis]
+        # extract B from v
+        L = u[:, :k] * s_sqrt
+ 
+        return B, L
+
+    def _load_mapped_params(self, pretrained_model, param_mapping, use_svd=True):
+        """ Load selected parameters specified in param_mapping
+            from the pre-trained model to the new model. 
+
+            param_mapping: key is the names in the new model, value
+                           is the names in the pretrained model. 
+        """
+        with open(pretrained_model, 'rb') as f:
+            binary_content = f.read()
+
+        model = caffe_pb2.NetParameter()
+        model.ParseFromString(binary_content)
+        layers = model.layer
+
+        for key, value in param_mapping.iteritems():
+            # 1-1 matching, direct copy
+            if len(value) == 1:
+                print 'saving pretrained[{}] -> net[{}]...'.format(key, value[0])
+                for layer in layers:
+                    if layer.name == key:
+                        self._solver.net.params[value[0]][0].data[...] = \
+                            np.reshape(np.array(layer.blobs[0].data), layer.blobs[0].shape.dim) 
+                        self._solver.net.params[value[0]][1].data[...] = \
+                            np.reshape(np.array(layer.blobs[1].data), layer.blobs[1].shape.dim)
+                        print 'pretrained[{}] -> net[{}] done.'.format(key, value[0])
+            elif len(value) == 2:
+                if use_svd:
+                    print 'saving pretrained[{}] -> net[{}, {}]...'.format(key, value[0], value[1])
+                    for layer in layers:
+                        if layer.name == key:
+                            # use svd to initialize
+                            # W is the weight matrix, k is the number of outputs
+                            W = np.reshape(np.array(layer.blobs[0].data), (layer.blobs[0].shape.dim[0], -1))
+                            # size of the target parameters
+                            basis_shape = self._solver.net.params[value[0]][0].data.shape
+                            linear_shape = self._solver.net.params[value[1]][0].data.shape
+                            # perform decomposition, save results. 
+                            B, L = self._init_params_svd(W, basis_shape[0])
+                            self._solver.net.params[value[0]][0].data[...] = B.reshape(basis_shape)
+                            self._solver.net.params[value[1]][0].data[...] = L.reshape(linear_shape)
+                            # use the bias of the original conv filter in the linear combinations
+                            self._solver.net.params[value[1]][1].data[...] = \
+                                np.reshape(np.array(layer.blobs[1].data), layer.blobs[1].shape.dim)
+
+                            print 'pretrained[{}] -> net[{}, {}] done.'.format(key, value[0], value[1])
+                else:
+                    print 'use_svd is set to False, skipping pretrained[{}] -> net[({}, {})]'.\
+                        format(key, value[0], value[1])
 
     def snapshot(self, base_iter):
         """ Save a snapshot of the network """
