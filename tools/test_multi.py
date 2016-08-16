@@ -13,7 +13,7 @@ import argparse
 import pprint
 import caffe
 import sys, os
-from multilabel.test import test_model
+from evaluation.test import multilabel_test
 
 def parse_args():
     """
@@ -73,4 +73,4 @@ if __name__ == '__main__':
     net.name = os.path.splitext(os.path.basename(args.weights))[0]
 
     imdb = get_imdb(args.imdb_name)
-    test_model(net, imdb, args.cls_id)
+    multilabel_test(net, imdb, args.cls_id)

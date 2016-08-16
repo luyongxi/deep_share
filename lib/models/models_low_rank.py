@@ -4,17 +4,16 @@
 
 """ Models with Low Rank Factorization. """
 
+import caffe
 from netmodel import NetModel
 import layer_helpers as lh
-
-# TODO: basis filter parameters should be shared!
 
 class ModelsLowRank(NetModel):
     """ Low rank network """
 
     # the default network has 5 conv layers, 2 fully-connected layers.
     # default hyperparameters
-    # _default_num_filters = {'conv': {0:12, 1:32, 2:64, 3:64, 4:64}, 'fc': {5: 512, 6: 512}, 'output': 512}
+    # _default_num_filters = {'conv': {0:12, 1:32, 2:64, 3:64, 4:64}, 'fc': {5: 512, 6: 512}, 'output': {7:512}}
     _default_num_filters = {}    
     _default_num_outputs = {'conv': {0:96, 1:256, 2:512, 3:512, 4:512}, 'fc': {5: 4096, 6: 4096}}
     # default parameters for convolutional layers
@@ -61,6 +60,12 @@ class ModelsLowRank(NetModel):
         self._include_pooling = include_pooling
         self._include_dropout = include_dropout
 
+        # prototxt files
+        self._deploy_net = caffe.NetSpec()
+        self._train_net = caffe.NetSpec()
+        self._val_net = caffe.NetSpec()
+        self._deploy_str = ''
+
     def _layer_type(self, i):
         """Return type of the layer """
         if i == self.num_layers:
@@ -72,11 +77,11 @@ class ModelsLowRank(NetModel):
 
     def _add_input_layers(self, net, deploy):
         """ Add the data layers """
-        self.io.add_input(net, deploy=deploy)
-
         if deploy:
+            lh.add_dummy_layer(net, name=self.io.data_name)
             return net[self.io.data_name]
-        else:
+        else:        
+            self.io.add_input(net, deploy=deploy)
             return net['train'][self.io.data_name]
 
     def _add_output_layers(self, net, bottom_dict, deploy):
@@ -87,8 +92,8 @@ class ModelsLowRank(NetModel):
             new_bottom_dict[j] = (self.num_tasks_at(i,j), bottom_dict[j])
 
         kwargs=dict(bottom_dict=new_bottom_dict, deploy=deploy)
-        if self._num_filters.has_key('output'):
-            kwargs['num_filters'] = self._num_filters['output']
+        if self._use_basis(self.num_layers):
+            kwargs['num_filters'] = self._num_filters['output'][self.num_layers]
 
         self.io.add_output(net, **kwargs)
 
@@ -108,13 +113,11 @@ class ModelsLowRank(NetModel):
         use_lrn = (i in self._include_lrn)
         use_pooling = (i in self._include_pooling)
         new_bottom_dict = {}
-        use_basis = self._num_filters.has_key('conv') and self._num_filters['conv'].has_key(i)
         # [basis]+conv+ReLU+[optional]LRN+[optional]Pool
         for j in xrange(self.num_cols_at(i)):
-            names = self.names_at_i_j(i,j)
             # use basis filter only if num_filters is specified for this layer. 
-            if use_basis:
-                blob_name = names['basis']
+            if self._use_basis(i):
+                blob_name = self.col_name_at_i_j(i,j)
                 blob_param_name = blob_name.split('_')[0]
                 filter_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 # basis filter
@@ -122,9 +125,9 @@ class ModelsLowRank(NetModel):
                     ks=self._conv_ks[i], pad=self._conv_pad[i], nout=self._num_filters['conv'][i], std='linear')
 
             for k in xrange(self.num_branch_at(i,j)):
-                br_name = names['agg'][k]
+                br_name = self.branch_name_at_i_j_k(i, j, k)
                 conv_names = {'weights': br_name+'_w', 'bias': br_name+'_b'}
-                if use_basis:
+                if self._use_basis(i):
                     # linear combination
                     lh.add_conv(net, bottom=net[blob_name], name=br_name, param_name=conv_names, k=1, 
                         ks=1, pad=0, nout=self._num_outputs['conv'][i], std='ReLu')
@@ -156,13 +159,11 @@ class ModelsLowRank(NetModel):
         """ Add a fully connected layer at layer i. """
         use_dropout = (i in self._include_dropout)
         new_bottom_dict = {}
-        use_basis = self._num_filters.has_key('fc') and self._num_filters['fc'].has_key(i)
         # [basis]+conv+ReLU+[optional]LRN+[optional]Pool
         for j in xrange(self.num_cols_at(i)):
-            names = self.names_at_i_j(i,j)
             # use basis filter only if num_filters is specified for this layer. 
-            if use_basis:
-                blob_name = names['basis']
+            if self._use_basis(i):
+                blob_name = self.col_name_at_i_j(i, j)
                 blob_param_name = blob_name.split('_')[0]
                 filter_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 # basis filter
@@ -170,9 +171,9 @@ class ModelsLowRank(NetModel):
                     nout=self._num_filters['fc'][i], std='linear')
 
             for k in xrange(self.num_branch_at(i,j)):
-                br_name = names['agg'][k]
+                br_name = self.branch_name_at_i_j_k(i, j, k)
                 conv_names = {'weights': br_name+'_w', 'bias': br_name+'_b'}
-                if use_basis:
+                if self._use_basis(i):
                     # linear combination
                     lh.add_fc(net, bottom=net[blob_name], name=br_name, param_name=conv_names,
                         nout=self._num_outputs['fc'][i], std='ReLu')
@@ -191,6 +192,11 @@ class ModelsLowRank(NetModel):
 
         return new_bottom_dict
 
+    def _use_basis(self, i):
+        """ Determine if layer i uses basis or not  """
+        layer_type = self._layer_type(i)
+        return (self._num_filters.has_key(layer_type) and self._num_filters[layer_type].has_key(i))
+
     def _post_fix_at(self, i, j, k=None):
         """ Output post fix for the names at layer i, column j, [branch k] 
             Use 1-based indexing. 
@@ -200,6 +206,20 @@ class ModelsLowRank(NetModel):
         else:
             return '{}_{}_{}'.format(i+1,j+1,k+1)
 
+    def col_name_at_i_j(self, i, j):
+        """ provide the name of col """
+        if i == self.num_layers:
+            return self.io.col_name_at_j(j)
+        elif i < self.num_layers:
+            return 'basis'+self._post_fix_at(i,j)
+
+    def branch_name_at_i_j_k(self, i, j, k):
+        """ provide the name of a branch """
+        if i == self.num_layers:
+            return self.io.branch_name_at_j_k(j,k)
+        elif i < self.num_layers:
+            return self._layer_type(i)+self._post_fix_at(i,j,k)
+
     def names_at_i_j(self, i, j):
         """ Return the name of the parameters at layer i, column j.
             This function depends on the exact network architecture
@@ -207,45 +227,113 @@ class ModelsLowRank(NetModel):
             Naming conventions: 
             Weights will have a postfix '_w', bias will have a postfix '_b'
             The indexing of the names are 1-based.
-        """
-        basis_param = 'basis'+self._post_fix_at(i,j)
-        if self._layer_type(i) == 'conv':
-            conv_param = ['conv'+self._post_fix_at(i,j,k) for k in xrange(self.num_branch_at(i,j))]            
-            names = {'basis': basis_param, 'agg': conv_param}
-        elif self._layer_type(i) == 'fc':
-            fc_param = ['fc'+self._post_fix_at(i,j,k) for k in xrange(self.num_branch_at(i,j))]            
-            names = {'basis': basis_param, 'agg': fc_param}
+        """            
+        names = {}
+            # basis name
+        if self._use_basis(i):
+            names['basis'] = self.col_name_at_i_j(i, j)
+        # branch name
+        names['agg'] = [self.branch_name_at_i_j_k(i, j, k) for k in xrange(self.num_branch_at(i,j))]
+
         return names
 
-    def update_deploy_net(self):
-        """ Update deploy net. """
-        data = self._add_input_layers(self.deploy_net, deploy=True)
-        bottom_dict = self._add_intermediate_layers(self.deploy_net, data)
-        self._add_output_layers(self.deploy_net, bottom_dict, deploy=True)
+    def to_param_mapping(self, changes):
+        """ Convert intermediate layers to parameter matching """
+        param_mapping = {}
 
-    def update_trainval_net(self):
+        # create an identity map (including output layers)
+        for i in xrange(self.num_layers+1):
+            for j in xrange(self.num_cols_at(i)):
+                names = self.names_at_i_j(i, j)
+                if names.has_key('basis'):
+                    param_mapping[names['basis']] = names['basis']
+                for agg_name in names['agg']:
+                    param_mapping[agg_name] = agg_name
+
+        for target, src in changes.iteritems():
+            if len(target) == 2:
+                # blobs
+                i, j = target
+                i1, j1 = src
+                if self._use_basis(i):
+                    name = self.col_name_at_i_j(i, j)
+                    name1 = self.col_name_at_i_j(i1, j1)
+                    param_mapping[name] = name1
+            elif len(target) == 3:
+                # branches
+                i, j, k = target
+                i1, j1, k1 = src
+                name =  self.branch_name_at_i_j_k(i, j, k)
+                name1 =  self.branch_name_at_i_j_k(i1, j1, k1)
+                param_mapping[name] = name1
+
+        return param_mapping
+
+    def _update_deploy_net(self):
+        """ Update deploy net. """
+        data = self._add_input_layers(self._deploy_net, deploy=True)
+        bottom_dict = self._add_intermediate_layers(self._deploy_net, data)
+        self._add_output_layers(self._deploy_net, bottom_dict, deploy=True)
+        # add input definition strings.
+        self._deploy_str='input: {}\ninput_dim: {}\ninput_dim: {}\ninput_dim: {}\ninput_dim: {}'.\
+            format('"'+self.io.data_name+'"', 1, 1, 224, 224)
+
+    def _update_trainval_net(self):
         """ Update trainval net. """
-        in_nets = {'train': self.train_net, 'val': self.val_net}
+        in_nets = {'train': self._train_net, 'val': self._val_net}
         data = self._add_input_layers(in_nets, deploy=False)
-        bottom_dict = self._add_intermediate_layers(self.train_net, data)
-        self._add_output_layers(self.train_net, bottom_dict, deploy=False)
+        bottom_dict = self._add_intermediate_layers(self._train_net, data)
+        self._add_output_layers(self._train_net, bottom_dict, deploy=False)
+
+    def proto_str(self, deploy):
+        """ Return the prototxt file in string """
+        if deploy == True:
+            self._update_deploy_net()
+            return self._deploy_str + '\n' + 'layer {' + 'layer {'.\
+                join(str(self._deploy_net.to_proto()).split('layer {')[2:])
+        else:
+            self._update_trainval_net()
+            return str(self._val_net.to_proto()) + str(self._train_net.to_proto()) 
 
 if __name__ == '__main__':
     import os
     import os.path as osp
     from model_io import MultiLabelIO
+    from netmodel import reduce_param_mapping
 
     # Save default model
     io = MultiLabelIO(class_list=[0,1,2,3])
-    default = ModelsLowRank(model_name='default_5-layer', path='', io=io)
+    default = ModelsLowRank(model_name='default_5-layer', path='default_5-layer', io=io)
+    print default.list_tasks()
+    print default.list_edges()
     default.to_proto(deploy=False)
     default.to_proto(deploy=True)
 
     # Create a branch
-    branch = ModelsLowRank(model_name='branch_5-layer', path='', io=io)
+    branch = ModelsLowRank(model_name='branch_5-layer', path='branch_5-layer', io=io)
     changes = branch.insert_branch((7,0), [[0,2],[1,3]])
-    print changes['blobs']
-    print changes['branches']
+    for k,v in changes.iteritems():
+        print '1. Network changes: {} <- {}'.format(k, v)
+    print branch.list_tasks()
+    print branch.list_edges()
     # Save new model
     branch.to_proto(deploy=False)
     branch.to_proto(deploy=True)
+
+    # Deepen the branch
+    branch.set_path('branch_5-layer-second')
+    branch.set_name('branch_5-layer-second')
+    changes1 = branch.insert_branch((6,0), [[0],[1]])
+    for k,v in changes1.iteritems():
+        print '2. Network changes: {} <- {}'.format(k, v)
+    print branch.list_tasks()
+    print branch.list_edges()
+    # Save new model
+    branch.to_proto(deploy=False)
+    branch.to_proto(deploy=True)
+
+    reduce_param_map = reduce_param_mapping([changes, changes1])
+    # print reduce_param_map
+    for k,v in reduce_param_map.iteritems():
+        print 'Reduced param changes: {} <- {}'.format(k, v)
+

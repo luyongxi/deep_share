@@ -35,7 +35,7 @@ def list_models():
 def _low_vgg_m_gen(io, model_name, path, first_low_rank=0):
     """ Low rank VGG-M with two fully connected layers. """
     num_filters = {'conv': {0:12, 1:32, 2:64, 3:64, 4:64}, 
-                    'fc': {5: 512, 6: 512}, 'output': 512}
+                    'fc': {5: 512, 6: 512}, 'output': {7:512}}
     num_filters['conv'] = {k:v for k,v in num_filters['conv'].iteritems() if k>=first_low_rank}
     num_filters['fc'] = {k:v for k,v in num_filters['fc'].iteritems() if k>=first_low_rank}
 
@@ -44,12 +44,13 @@ def _low_vgg_m_gen(io, model_name, path, first_low_rank=0):
 
     param_mapping = {}
     for i in xrange(model.num_layers):
-        key = 'conv{}'.format(i+1)
+        value = 'conv{}'.format(i+1)
         net_names = model.names_at_i_j(i, 0)
         if i < first_low_rank:
-            param_mapping[key] = (net_names['agg'][0])
+            param_mapping[(self.col_name_at_i_j_k(i, 0, 0), )] = value
         else:
-            param_mapping[key] = (net_names['basis'], net_names['agg'][0])
+            param_mapping[(self.basis_name_at_i_j(i, 0), \
+                self.col_name_at_i_j_k(i, 0, 0))] = value
 
     return model, param_mapping
 
@@ -70,7 +71,7 @@ def _low_vgg_16_gen(io, model_name, path, first_low_rank=0):
     # parameters for convolutional layers
     num_filters = {'conv':{0:8,1:8,2:16,3:16,4:32,5:32,6:32,
                            7:64,8:64,9:64,10:64,11:64,12:64}, 
-                    'fc':{13:512,14:512}, 'output': 512}
+                    'fc':{13:512,14:512}, 'output': {15:512}}
 
     # only layers above (including) first_low_rank should have low-rank factorization 
     num_filters['conv'] = {k:v for k,v in num_filters['conv'].iteritems() if k>=first_low_rank}
@@ -120,11 +121,11 @@ def _low_vgg_16_gen(io, model_name, path, first_low_rank=0):
 
     param_mapping = {}
     for i in xrange(model.num_layers):
-        key = vanila_vgg_16_names(i)
-        net_names = model.names_at_i_j(i, 0)
+        value = vanila_vgg_16_names(i)
         if i < first_low_rank:
-            param_mapping[key] = (net_names['agg'][0])
+            param_mapping[(self.col_name_at_i_j_k(i, 0, 0), )] = value
         else:
-            param_mapping[key] = (net_names['basis'], net_names['agg'][0])
+            param_mapping[(self.basis_name_at_i_j(i, 0), \
+                self.col_name_at_i_j_k(i, 0, 0))] = value
 
     return model, param_mapping

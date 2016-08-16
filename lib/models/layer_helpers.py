@@ -67,9 +67,9 @@ def add_sigmoid(net, bottom, name, in_place=True):
     """Add Sigmoid activation """
     net[name] = L.Sigmoid(bottom, in_place=in_place)
 
-def add_dummy_data_layer(net, name, dim):
+def add_dummy_layer(net, name):
     """Add a dummy data layer """
-    net[name] = L.DummyData(shape=dict(dim=dim))
+    net[name] = L.Layer()
 
 def add_multilabel_data_layer(net, name, phase, num_classes, class_list=None):
     """ Add a MultiLabelData layer """

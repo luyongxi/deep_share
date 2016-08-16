@@ -5,7 +5,7 @@
 """ Test clustering of tasks """
 
 import _init_paths
-from multilabel.cluster import MultiLabel_CM, ClusterAffinity
+from evaluation.cluster import MultiLabel_CM, ClusterAffinity
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 import caffe

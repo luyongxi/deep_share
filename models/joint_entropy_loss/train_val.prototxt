@@ -506,6 +506,7 @@ layer {
   bottom: "score"
   bottom: "label"
   name: "loss"
+  top: "loss"
   type: "SigmoidCrossEntropyLoss"
   loss_weight: 1
   include: { phase: TRAIN }

@@ -7,11 +7,11 @@
 """Train N-way classifier """
 
 import _init_paths
-from singlelabel.train import train_model
+from solvers.singlelabel_sw import SingleLabelSW
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 from models.factory import get_models, get_models_dir
-from models.solver import DynamicSolver
+from solvers.solver import SolverParameter
 from models.model_io import MultiLabelIO
 import caffe
 import argparse
@@ -107,4 +107,5 @@ if __name__ == '__main__':
     output_dir = get_output_dir(traindb, None)
     print 'Output will be saved to `{:s}`'.format(output_dir)
 
-    train_model(imdb, args.solver, output_dir, args.pretrained_model, args.max_iters, args.base_iter)
+    sw = SingleLabelSW(imdb, args.solver, output_dir, args.pretrained_model)
+    sw.train_model(args.max_iters, args.base_iter)

@@ -339,7 +339,7 @@ layer {
 }
  layer {
   bottom: "score"
-  top: "score"
+  top: "prob"
   name: "prob"
   type: "Sigmoid"
  }

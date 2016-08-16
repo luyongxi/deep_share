@@ -508,11 +508,11 @@ layer {
   bottom: "score"
   bottom: "label"
   name: "loss"
+  top: "loss"
   type: "EuclideanLoss"
   loss_weight: 1
   include: { phase: TRAIN }
 }
-
 layer {
   name: "error"
   type: "Python"

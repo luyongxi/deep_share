@@ -21,11 +21,11 @@
 # of this procedure, and write programs capable of resuming the training from every snapshots. 
 
 import _init_paths
-from multilabel.train import train_model
+from solvers.multilabel_sw import MultiLabelSW
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 from models.factory import get_models
-from models.solver import DynamicSolver
+from solvers.solver import SolverParameter
 from models.model_io import MultiLabelIO
 import caffe
 import argparse
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         # create solver and model
         model, param_mapping = get_models(args.model, dict(io=io, model_name=args.model, 
             path=path, first_low_rank=args.first_low_rank))
-        solver = DynamicSolver(model.fullpath, base_lr=args.base_lr, lr_policy=args.lr_policy, 
+        solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
             gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
             clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
         # save files
@@ -181,7 +181,8 @@ if __name__ == '__main__':
         solver.to_proto()
         args.solver = solver.solver_file()
 
-        print 'Model files saved at {}'.format(model.fullpath)
+        print 'Model files saved at {}'.format(model.path)
 
-    train_model(imdb, args.solver, output_dir, args.pretrained_model, param_mapping, args.use_svd,  
-        args.max_iters, args.base_iter, class_id)
+    sw = MultiLabelSW(imdb, args.solver, output_dir, args.pretrained_model, 
+        param_mapping, args.use_svd, class_id)
+    sw.train_model(args.max_iters, args.base_iter)

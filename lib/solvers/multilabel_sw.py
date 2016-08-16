@@ -3,13 +3,13 @@
 #---------------------------
 
 """
-Train Single Label Classifier
+Train multilabel classifier
 """
 
 import datasets
 from utils.config import cfg
 from utils.timer import Timer
-from models.solver import SolverWrapper
+from .solver import SolverWrapper
 import numpy as np
 import os
 import caffe
@@ -17,12 +17,15 @@ import caffe
 from caffe.proto import caffe_pb2
 import google.protobuf as pb2
 
-class ClassificationSW(SolverWrapper):
+class MultiLabelSW(SolverWrapper):
     """ Wrapper around Caffe's solver """
     
-    def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None, param_mapping=None, use_svd=True):
+    def __init__(self, imdb, solver_prototxt, output_dir, 
+        pretrained_model=None, param_mapping=None, use_svd=True, cls_id=None):
         """ Initialize the SolverWrapper. """
-        SolverWrapper.__init__(self, imdb, solver_prototxt, output_dir, pretrained_model, param_mapping, use_svd)
+
+        SolverWrapper.__init__(self, imdb, solver_prototxt, output_dir, 
+            pretrained_model, param_mapping, use_svd)
 
         # load imdb to layers
         self._solver.net.layers[0].set_imdb(imdb['train'])
@@ -32,7 +35,13 @@ class ClassificationSW(SolverWrapper):
         # get the number of prediction classes
         self._num_classes = self._solver.net.layers[0].num_classes
 
-    def train_model(self, max_iters, base_iter):
+        # set class list
+        if cls_id is not None:
+            self._solver.net.layers[0].set_classlist(cls_id)
+            if cfg.TRAIN.USE_VAL is True:
+                self._solver.test_nets[0].layers[0].set_classlist(cls_id)
+
+    def do_train_model(self, max_iters, base_iter):
         """Train the model with iterations=max_iters"""
 
         last_snapshot_iter = -1
@@ -44,12 +53,12 @@ class ClassificationSW(SolverWrapper):
             # adjust iteration
             cur_iter = self._solver.iter + base_iter
             # evaluate training performance
-            acc_train = self._solver.net.blobs['acc'].data
+            err_train = self._solver.net.blobs['error'].data
             loss_train = self._solver.net.blobs['loss'].data
-            print 'Iteration {}: training accuracy = {}'.format(cur_iter, acc_train.ravel())
+            print 'Iteration {}: training error = {}'.format(cur_iter, err_train.ravel())
             print 'Iteration {}: training loss = {}'.format(cur_iter, loss_train)
 
-            acc_val = np.zeros((1,))            
+            err_val = np.zeros((1, self._num_classes))            
             if cur_iter % cfg.TRAIN.VAL_FREQ == 0:
 
                 # display training speed 
@@ -57,9 +66,9 @@ class ClassificationSW(SolverWrapper):
                 # perform validation    
                 for _ in xrange(cfg.TRAIN.VAL_SIZE):
                     self._solver.test_nets[0].forward()
-                    acc_val += self._solver.test_nets[0].blobs['acc'].data
-                acc_val /= cfg.TRAIN.VAL_SIZE
-                print 'Iteration {}: validation accuracy = {}'.format(cur_iter, acc_val.ravel())
+                    err_val += self._solver.test_nets[0].blobs['error'].data
+                err_val /= cfg.TRAIN.VAL_SIZE
+                print 'Iteration {}: validation error = {}'.format(cur_iter, err_val.ravel())
 
             if cur_iter % cfg.TRAIN.SNAPSHOT_ITERS == 0:
                 last_snapshot_iter = cur_iter
@@ -68,14 +77,3 @@ class ClassificationSW(SolverWrapper):
         # save snapshot if we haven't done so
         if last_snapshot_iter != cur_iter:
             self.snapshot(base_iter)
-
-def train_model(imdb, solver_prototxt, output_dir, trained_model=None, 
-    param_mapping=None, use_svd=True ,max_iters=40000, base_iter=0):
-    """Train a attribute classification model """
-
-    sw = ClassificationSW(imdb, solver_prototxt, output_dir, 
-        pretrained_model=pretrained_model, param_mapping=param_mapping, use_svd=use_svd)
-
-    print 'Solving...'
-    sw.train_model(max_iters, base_iter)
-    print 'done solving'

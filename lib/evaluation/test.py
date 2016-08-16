@@ -2,14 +2,14 @@
 # Written by Yongxi Lu
 # ---------------------------------
 
-"Test a multi-label classification model on a given network"
+"Test a on a given network and a given dataset"
 
 import numpy as np
 from utils.blob import im_list_to_blob
 from utils.timer import Timer
 from utils.config import cfg
 
-def test_model(net, imdb, cls_idx):
+def multilabel_test(net, imdb, cls_idx):
     """ Test a model on imdb. """
 
     if cls_idx is None:
@@ -17,16 +17,12 @@ def test_model(net, imdb, cls_idx):
     num_classes = len(cls_idx)
     num_images = imdb.num_images
 
-    print '---------------------------------------------------------------'
-    print '!!! Test model on the "{}" dataset'.format(imdb.name)
-    print '!!! The dataset has {} images.'.format(imdb.num_images)
-
     # iterate over images, collect error vectors
     err = np.zeros((num_images, num_classes)) # in {0,1} format
     timer = Timer()
     for i in xrange(num_images):
         # prepare blobs 
-        label_name = "score"
+        label_name = "prob"
         fn = imdb.image_path_at(i)
         data = im_list_to_blob([fn], cfg.PIXEL_MEANS, cfg.SCALE)
         net.blobs['data'].reshape(*(data.shape))
@@ -42,6 +38,10 @@ def test_model(net, imdb, cls_idx):
         print 'Image {}/{} ::: speed: {:.3f}s per image.'.format(i, num_images, timer.average_time)
 
     # print out basic dataset information
+    print '---------------------------------------------------------------'
+    print '!!! Summary of results.'
+    print '!!! Test model on the "{}" dataset'.format(imdb.name)
+    print '!!! The dataset has {} images.'.format(imdb.num_images)
     print '!!! The average run time is {} per image.'.format(timer.average_time)
 
     # get error for each class

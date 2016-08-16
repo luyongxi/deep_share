@@ -6,6 +6,25 @@ import os
 import os.path as osp
 import caffe
 
+def reduce_param_mapping(mappings):
+    """ Reduce a sequence of param_mapping to 
+        a single mapping procedure
+        Input: 
+            mappings: a list of param_mapping. 
+        Output:
+            param_mapping: a param mapping that is
+                equivalent of applying the mappings
+                on the "mappings" sequentially.
+    """
+    param_mapping = {}
+    for new_mapping in mappings:
+        for k, v in new_mapping.iteritems():
+            if param_mapping.has_key(v):
+                param_mapping[k] = param_mapping[v]
+            else:
+                param_mapping[k] = v
+    return param_mapping
+
 class NetBlob(object):
     """ A structure that encodes a blob  """
     def __init__(self, top_idx, tasks):        
@@ -63,7 +82,9 @@ class NetModel(object):
                     data_name: name of the data blob
                     add_input(net, deploy): add input layers 
                     add_output(net, bottom_dict, deploy): add output layers
-                num_layers: number of intermediate layers 
+                    col_name_at_j(j): column name at j
+                    branch_name_at_j_k(j, k): branch name
+                    num_layers: number of intermediate layers 
                             (not counting inputs and task specific 
                             output layers)
         """
@@ -72,9 +93,6 @@ class NetModel(object):
         self._io = io
         self._num_layers = num_layers
         self._init_graph(num_layers, self.num_tasks)
-
-        self._net_specs = {'train': caffe.NetSpec(), 'val': caffe.NetSpec(),
-            'deploy': caffe.NetSpec()}
 
     def _init_graph(self, num_layers, num_tasks):
         """ Initilize the connection graph of blobs """
@@ -90,11 +108,23 @@ class NetModel(object):
                 tasks = [[t for b in self._net_graph[j+1] for ts in b.tasks for t in ts]]
                 self._net_graph[j].append(NetBlob(top_idx=top_idx, tasks=tasks))
 
+    def list_tasks(self):
+        """ Return a list of idx of the tasks. The idx is in the same order of the
+            branches.
+        """
+        task_list = []
+        i = self.num_layers
+        for j in xrange(self.num_cols_at(i)):
+            for k in xrange(self.num_branch_at(i,j)):
+                task_list.extend(self.tasks_at(i, j, k))
+
+        return task_list
+
     def insert_branch(self, idx, split):
         """ Create a new branch. 
             Inputs:
                 idx: a tuple (layer_idx, col_idx), to insert the branch.
-                split: a list with two sub-lists, each are indexes into a set of tops
+                split: a list with two sub-lists, each are indexes into a set of tops (branches)
             Outputs:
                 changes: a dict with two keys, 'blobs' and 'branches'
                     Only two situations: 
@@ -129,24 +159,40 @@ class NetModel(object):
         b_blobs.set_tasks(branch_idx=[branch_idx], tasks=[[t for i in left for t in [tasks[i]]]])
         b_blobs.add_top(top_idx=[right_idx], tasks=[[t for i in right for t in [tasks[i]]]])
         # log changes
-        changes = {'blobs':{}, 'branches':{}}
-        changes['blobs'] = {(idx[0],idx[1]): [(idx[0],idx[1]), (idx[0],right_idx)]}
-        changes['branches'] = {(idx[0]-1, bottom_idx, branch_idx): 
-            [(idx[0]-1, bottom_idx, branch_idx), (idx[0]-1, bottom_idx, b_blobs.num_tops()-1)]}
+        changes = {}
+        # layer i
+        # blobs
+        changes[(idx[0], right_idx)] = (idx[0],idx[1])
+        # branches
+        for k1 in xrange(len(left)):
+            changes[(idx[0], idx[1], k1)] = (idx[0], idx[1], tops[left[k1]])
+        for k2 in xrange(len(right)):
+            changes[idx[0], right_idx, k2] = (idx[0], idx[1], tops[right[k2]])
+        # layer i-1
+        # branches
+        changes[(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)] = (idx[0]-1, bottom_idx, branch_idx)
 
-        return changes
-        
-    def all_edges(self):
+        return self.to_param_mapping(changes)
+
+    def to_param_mapping(self, changes):
+        """ Convert change lists from the insert branch function to 
+            param_mapping matching old models to the new model
+        """
+        return NotImplementedError
+
+    def list_edges(self):
         """ Return a list of tuples, each with a layer idx and
             a column idx. The list indexes the blobs considered
             at the edge (candidate for branching).
         """
         edges = []
-        for layer_idx in xrange(len(net_graph)):
-            for col_idx in xrange(len(net_graph[layer_idx])):
+        for layer_idx in xrange(1, len(self._net_graph)):
+            for col_idx in xrange(len(self._net_graph[layer_idx])):
                 # if layer idx is 0, then the layer below is the shared input
-                if self._net_graph[layer_idx][col_idx].is_edge() and (layer_idx>0):
-                    edges += (layer_idx, col_idx)
+                if self._net_graph[layer_idx][col_idx].is_edge():
+                    edges += [(layer_idx, col_idx)]
+
+        return edges
 
     def tasks_at(self, i, j, k=None):
         """ Return the indexing into tasks at layer i, column j, [branch k] """
@@ -174,7 +220,7 @@ class NetModel(object):
     def num_cols_at(self, i):
         """ Returns number of columns at layer i """
         return len(self._net_graph[i])
-
+    
     @property
     def num_layers(self):
         return self._num_layers
@@ -185,29 +231,19 @@ class NetModel(object):
 
     @property
     def path(self):
-        """ Will save as path/model_name/train_val.prototxt, 
-            or path/model_name/test.prototxt """
+        """ Will save as path/train_val.prototxt, 
+            or path/test.prototxt """
         return self._path
+
+    def set_path(self, path):
+        self._path = path
+
+    def set_name(self, name):
+        self._model_name = name
 
     @property
     def model_name(self):
         return self._model_name
-
-    @property
-    def fullpath(self):
-        return osp.join(self.path, self.model_name)
-
-    @property
-    def deploy_net(self):
-        return self._net_specs['deploy']
-
-    @property
-    def train_net(self):
-        return self._net_specs['train']
-
-    @property
-    def val_net(self):
-        return self._net_specs['val']
 
     @property
     def io(self):
@@ -216,21 +252,18 @@ class NetModel(object):
     def to_proto(self, deploy=False):
         """ Need different inputs for deploy or not """
         # check if the folder exists, if not create a new folder. 
-        folder = self.fullpath
+        folder = self.path
         if not osp.exists(folder):
             os.makedirs(folder)
 
-        if deploy == True:
-            self.update_deploy_net()
+        if deploy==True:
             fn = osp.join(folder, 'test.prototxt')
-            with open(fn, 'w') as f:
-                f.write(str(self.deploy_net.to_proto()))
         else:
-            self.update_trainval_net()
             fn = osp.join(folder, 'train_val.prototxt')
-            with open(fn, 'w') as f:
-                f.write(str(self.val_net.to_proto()))
-                f.write(str(self.train_net.to_proto()))   
+
+        name_str = 'name: {}\n'.format('"'+self.model_name+'"')
+        with open(fn, 'w') as f:
+            f.write(name_str+self.proto_str(deploy=deploy))
 
     def names_at_i_j(self, i, j):
         """ Return the name of the parameters at layer i, column j.
@@ -239,10 +272,14 @@ class NetModel(object):
         """
         return NotImplementedError
 
-    def update_deploy_net(self):
-        """ Update deploy net. """
-        raise NotImplementedError
+    def col_name_at_i_j(self, i, j):
+        """ provide the name of column """
+        return NotImplementedError
 
-    def update_trainval_net(self):
-        """ Update trainval net. """
+    def branch_name_at_i_j_k(self, i, j, k):
+        """ provide the name of a branch """
+        return NotImplementedError
+
+    def proto_str(self, deploy):
+        """ Return the prototxt file in string """
         raise NotImplementedError

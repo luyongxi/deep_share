@@ -79,38 +79,49 @@ class SolverWrapper(object):
 
         for key, value in param_mapping.iteritems():
             # 1-1 matching, direct copy
-            if len(value) == 1:
-                print 'saving pretrained[{}] -> net[{}]...'.format(key, value[0])
+            if len(key) == 1:
+                print 'saving net[{}] <- pretrained[{}]...'.format(key[0], value)
                 for layer in layers:
-                    if layer.name == key:
-                        self._solver.net.params[value[0]][0].data[...] = \
+                    if layer.name == value:
+                        self._solver.net.params[key[0]][0].data[...] = \
                             np.reshape(np.array(layer.blobs[0].data), layer.blobs[0].shape.dim) 
-                        self._solver.net.params[value[0]][1].data[...] = \
+                        self._solver.net.params[key[0]][1].data[...] = \
                             np.reshape(np.array(layer.blobs[1].data), layer.blobs[1].shape.dim)
-                        print 'pretrained[{}] -> net[{}] done.'.format(key, value[0])
-            elif len(value) == 2:
+                        print 'saving net[{}] <- pretrained[{}] done.'.format(key[0], value)
+            elif len(key) == 2:
                 if use_svd:
-                    print 'saving pretrained[{}] -> net[{}, {}]...'.format(key, value[0], value[1])
+                    print 'saving net[{}, {}] <- pretrained[{}] ...'.format(key[0], key[1], value)
                     for layer in layers:
-                        if layer.name == key:
+                        if layer.name == value:
                             # use svd to initialize
                             # W is the weight matrix, k is the number of outputs
                             W = np.reshape(np.array(layer.blobs[0].data), (layer.blobs[0].shape.dim[0], -1))
                             # size of the target parameters
-                            basis_shape = self._solver.net.params[value[0]][0].data.shape
-                            linear_shape = self._solver.net.params[value[1]][0].data.shape
+                            basis_shape = self._solver.net.params[key[0]][0].data.shape
+                            linear_shape = self._solver.net.params[key[1]][0].data.shape
                             # perform decomposition, save results. 
                             B, L = self._init_params_svd(W, basis_shape[0])
-                            self._solver.net.params[value[0]][0].data[...] = B.reshape(basis_shape)
-                            self._solver.net.params[value[1]][0].data[...] = L.reshape(linear_shape)
+                            self._solver.net.params[key[0]][0].data[...] = B.reshape(basis_shape)
+                            self._solver.net.params[key[1]][0].data[...] = L.reshape(linear_shape)
                             # use the bias of the original conv filter in the linear combinations
-                            self._solver.net.params[value[1]][1].data[...] = \
+                            self._solver.net.params[key[1]][1].data[...] = \
                                 np.reshape(np.array(layer.blobs[1].data), layer.blobs[1].shape.dim)
 
-                            print 'pretrained[{}] -> net[{}, {}] done.'.format(key, value[0], value[1])
+                            print 'net[{}, {}] <- pretrained[{}] done.'.format(key[0], key[1], value)
                 else:
-                    print 'use_svd is set to False, skipping pretrained[{}] -> net[({}, {})]'.\
-                        format(key, value[0], value[1])
+                    print 'use_svd is set to False, skipping net[({}, {})] <- pretrained[{}]'.\
+                        format(key[0], key[1], value)
+
+    def snapshot_name(self, base_iter):
+        """ Return the name of the snapshot file """
+        infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX 
+                 if cfg.TRAIN.SNAPSHOT_INFIX != '' else '')
+        filename = (self._solver_param.snapshot_prefix + infix +
+                    '_iter_{:d}'.format(self._solver.iter + 
+                    base_iter) + '.caffemodel')
+        filename = os.path.join(self._output_dir, filename)
+
+        return filename
 
     def snapshot(self, base_iter):
         """ Save a snapshot of the network """
@@ -120,25 +131,21 @@ class SolverWrapper(object):
         if not os.path.exists(self._output_dir):
             os.makedirs(self._output_dir)
 
-        infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX 
-                 if cfg.TRAIN.SNAPSHOT_INFIX != '' else '')
         # filename should adjust to current iterations
-        filename = (self._solver_param.snapshot_prefix + infix +
-                    '_iter_{:d}'.format(self._solver.iter + 
-                    base_iter) + '.caffemodel')
-        filename = os.path.join(self._output_dir, filename)
-
+        filename = self.snapshot_name(base_iter)
         net.save(str(filename))
         print 'Wrote snapshot to: {:s}'.format(filename)
 
     def train_model(self, max_iters, base_iter):
         """Train the model with iterations=max_iters"""
-        return NotImplementedError
+        print 'Solving...'
+        self.do_train_model(max_iters, base_iter)
+        print 'done solving'
 
-class DynamicSolver(object):
+class SolverParameter(object):
     """This class represents a solver prototxt file """
 
-    def __init__(self, path='', base_lr=0.01, lr_policy="step", 
+    def __init__(self, path, base_lr=0.01, lr_policy="step", 
         gamma=0.1, stepsize=20000, momentum=0.9, weight_decay=0.0005,
         clip_gradients=None, snapshot_prefix='default'):
 
@@ -187,5 +194,5 @@ class DynamicSolver(object):
 
 if __name__ == '__main__':
     # test by generating a default solver
-    ds = DynamicSolver()
-    ds.to_proto()
+    sp = SolverParameter()
+    sp.to_proto()

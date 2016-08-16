@@ -1,3 +1,4 @@
+name: "default_5-layer"
 layer {
   name: "data"
   type: "Python"
@@ -27,48 +28,17 @@ layer {
   }
 }
 layer {
-  name: "basis1-1"
+  name: "conv1_1_1"
   type: "Convolution"
   bottom: "data"
-  top: "basis1-1"
+  top: "conv1_1_1"
   param {
-    name: "basis1-1_w"
+    name: "conv1_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis1-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 32
-    bias_term: true
-    pad: 0
-    kernel_size: 7
-    stride: 2
-    weight_filler {
-      type: "gaussian"
-      std: 0.176776695297
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "agg1-1-1"
-  type: "Convolution"
-  bottom: "basis1-1"
-  top: "agg1-1-1"
-  param {
-    name: "agg1-1-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "agg1-1-1_b"
+    name: "conv1_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -76,11 +46,10 @@ layer {
     num_output: 96
     bias_term: true
     pad: 0
-    kernel_size: 1
-    stride: 1
+    kernel_size: 7
+    stride: 2
     weight_filler {
-      type: "gaussian"
-      std: 0.144337567297
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -89,16 +58,16 @@ layer {
   }
 }
 layer {
-  name: "relu1-1-1"
+  name: "relu1_1_1"
   type: "ReLU"
-  bottom: "agg1-1-1"
-  top: "agg1-1-1"
+  bottom: "conv1_1_1"
+  top: "conv1_1_1"
 }
 layer {
-  name: "norm1-1-1"
+  name: "norm1_1_1"
   type: "LRN"
-  bottom: "agg1-1-1"
-  top: "agg1-1-1"
+  bottom: "conv1_1_1"
+  top: "conv1_1_1"
   lrn_param {
     local_size: 5
     alpha: 0.0005
@@ -107,41 +76,40 @@ layer {
   }
 }
 layer {
-  name: "pool1-1-1"
+  name: "pool1_1_1"
   type: "Pooling"
-  bottom: "agg1-1-1"
-  top: "pool1-1-1"
+  bottom: "conv1_1_1"
+  top: "pool1_1_1"
   pooling_param {
     pool: MAX
-    kernel_size: 2
+    kernel_size: 3
     stride: 2
     pad: 0
   }
 }
 layer {
-  name: "basis2-1"
+  name: "conv2_1_1"
   type: "Convolution"
-  bottom: "pool1-1-1"
-  top: "basis2-1"
+  bottom: "pool1_1_1"
+  top: "conv2_1_1"
   param {
-    name: "basis2-1_w"
+    name: "conv2_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis2-1_b"
+    name: "conv2_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   convolution_param {
-    num_output: 32
+    num_output: 256
     bias_term: true
-    pad: 0
+    pad: 1
     kernel_size: 5
     stride: 2
     weight_filler {
-      type: "gaussian"
-      std: 0.176776695297
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -150,47 +118,16 @@ layer {
   }
 }
 layer {
-  name: "agg2-1-1"
-  type: "Convolution"
-  bottom: "basis2-1"
-  top: "agg2-1-1"
-  param {
-    name: "agg2-1-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "agg2-1-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 256
-    bias_term: true
-    pad: 0
-    kernel_size: 1
-    stride: 1
-    weight_filler {
-      type: "gaussian"
-      std: 0.0883883476483
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "relu2-1-1"
+  name: "relu2_1_1"
   type: "ReLU"
-  bottom: "agg2-1-1"
-  top: "agg2-1-1"
+  bottom: "conv2_1_1"
+  top: "conv2_1_1"
 }
 layer {
-  name: "norm2-1-1"
+  name: "norm2_1_1"
   type: "LRN"
-  bottom: "agg2-1-1"
-  top: "agg2-1-1"
+  bottom: "conv2_1_1"
+  top: "conv2_1_1"
   lrn_param {
     local_size: 5
     alpha: 0.0005
@@ -199,109 +136,40 @@ layer {
   }
 }
 layer {
-  name: "pool2-1-1"
+  name: "pool2_1_1"
   type: "Pooling"
-  bottom: "agg2-1-1"
-  top: "pool2-1-1"
+  bottom: "conv2_1_1"
+  top: "pool2_1_1"
   pooling_param {
     pool: MAX
-    kernel_size: 2
+    kernel_size: 3
     stride: 2
     pad: 0
   }
 }
 layer {
-  name: "basis3-1"
+  name: "conv3_1_1"
   type: "Convolution"
-  bottom: "pool2-1-1"
-  top: "basis3-1"
+  bottom: "pool2_1_1"
+  top: "conv3_1_1"
   param {
-    name: "basis3-1_w"
+    name: "conv3_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis3-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 32
-    bias_term: true
-    pad: 0
-    kernel_size: 3
-    stride: 1
-    weight_filler {
-      type: "gaussian"
-      std: 0.176776695297
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "agg3-1-1"
-  type: "Convolution"
-  bottom: "basis3-1"
-  top: "agg3-1-1"
-  param {
-    name: "agg3-1-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "agg3-1-1_b"
+    name: "conv3_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   convolution_param {
     num_output: 512
     bias_term: true
-    pad: 0
-    kernel_size: 1
-    stride: 1
-    weight_filler {
-      type: "gaussian"
-      std: 0.0625
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "relu3-1-1"
-  type: "ReLU"
-  bottom: "agg3-1-1"
-  top: "agg3-1-1"
-}
-layer {
-  name: "basis4-1"
-  type: "Convolution"
-  bottom: "agg3-1-1"
-  top: "basis4-1"
-  param {
-    name: "basis4-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "basis4-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 32
-    bias_term: true
-    pad: 0
+    pad: 1
     kernel_size: 3
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.176776695297
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -310,66 +178,34 @@ layer {
   }
 }
 layer {
-  name: "agg4-1-1"
+  name: "relu3_1_1"
+  type: "ReLU"
+  bottom: "conv3_1_1"
+  top: "conv3_1_1"
+}
+layer {
+  name: "conv4_1_1"
   type: "Convolution"
-  bottom: "basis4-1"
-  top: "agg4-1-1"
+  bottom: "conv3_1_1"
+  top: "conv4_1_1"
   param {
-    name: "agg4-1-1_w"
+    name: "conv4_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "agg4-1-1_b"
+    name: "conv4_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   convolution_param {
     num_output: 512
     bias_term: true
-    pad: 0
-    kernel_size: 1
-    stride: 1
-    weight_filler {
-      type: "gaussian"
-      std: 0.0625
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "relu4-1-1"
-  type: "ReLU"
-  bottom: "agg4-1-1"
-  top: "agg4-1-1"
-}
-layer {
-  name: "basis5-1"
-  type: "Convolution"
-  bottom: "agg4-1-1"
-  top: "basis5-1"
-  param {
-    name: "basis5-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "basis5-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 32
-    bias_term: true
-    pad: 0
+    pad: 1
     kernel_size: 3
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.176776695297
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -378,29 +214,34 @@ layer {
   }
 }
 layer {
-  name: "agg5-1-1"
+  name: "relu4_1_1"
+  type: "ReLU"
+  bottom: "conv4_1_1"
+  top: "conv4_1_1"
+}
+layer {
+  name: "conv5_1_1"
   type: "Convolution"
-  bottom: "basis5-1"
-  top: "agg5-1-1"
+  bottom: "conv4_1_1"
+  top: "conv5_1_1"
   param {
-    name: "agg5-1-1_w"
+    name: "conv5_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "agg5-1-1_b"
+    name: "conv5_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   convolution_param {
     num_output: 512
     bias_term: true
-    pad: 0
-    kernel_size: 1
+    pad: 1
+    kernel_size: 3
     stride: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.0625
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -409,70 +250,42 @@ layer {
   }
 }
 layer {
-  name: "relu5-1-1"
+  name: "relu5_1_1"
   type: "ReLU"
-  bottom: "agg5-1-1"
-  top: "agg5-1-1"
+  bottom: "conv5_1_1"
+  top: "conv5_1_1"
 }
 layer {
-  name: "pool5-1-1"
+  name: "pool5_1_1"
   type: "Pooling"
-  bottom: "agg5-1-1"
-  top: "pool5-1-1"
+  bottom: "conv5_1_1"
+  top: "pool5_1_1"
   pooling_param {
     pool: MAX
-    kernel_size: 2
+    kernel_size: 3
     stride: 2
     pad: 0
   }
 }
 layer {
-  name: "basis6-1"
+  name: "fc6_1_1"
   type: "InnerProduct"
-  bottom: "pool5-1-1"
-  top: "basis6-1"
+  bottom: "pool5_1_1"
+  top: "fc6_1_1"
   param {
-    name: "basis6-1_w"
+    name: "fc6_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis6-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 256
-    weight_filler {
-      type: "gaussian"
-      std: 0.0625
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "agg6-1-1"
-  type: "InnerProduct"
-  bottom: "basis6-1"
-  top: "agg6-1-1"
-  param {
-    name: "agg6-1-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "agg6-1-1_b"
+    name: "fc6_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   inner_product_param {
     num_output: 4096
     weight_filler {
-      type: "gaussian"
-      std: 0.0220970869121
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -481,67 +294,39 @@ layer {
   }
 }
 layer {
-  name: "relu6-1-1"
+  name: "relu6_1_1"
   type: "ReLU"
-  bottom: "agg6-1-1"
-  top: "agg6-1-1"
+  bottom: "fc6_1_1"
+  top: "fc6_1_1"
 }
 layer {
-  name: "drop6-1-1"
+  name: "drop6_1_1"
   type: "Dropout"
-  bottom: "agg6-1-1"
-  top: "agg6-1-1"
+  bottom: "fc6_1_1"
+  top: "fc6_1_1"
   dropout_param {
     dropout_ratio: 0.5
   }
 }
 layer {
-  name: "basis7-1"
+  name: "fc7_1_1"
   type: "InnerProduct"
-  bottom: "agg6-1-1"
-  top: "basis7-1"
+  bottom: "fc6_1_1"
+  top: "fc7_1_1"
   param {
-    name: "basis7-1_w"
+    name: "fc7_1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "basis7-1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 256
-    weight_filler {
-      type: "gaussian"
-      std: 0.0625
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "agg7-1-1"
-  type: "InnerProduct"
-  bottom: "basis7-1"
-  top: "agg7-1-1"
-  param {
-    name: "agg7-1-1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "agg7-1-1_b"
+    name: "fc7_1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   inner_product_param {
     num_output: 4096
     weight_filler {
-      type: "gaussian"
-      std: 0.0220970869121
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -550,40 +335,117 @@ layer {
   }
 }
 layer {
-  name: "relu7-1-1"
+  name: "relu7_1_1"
   type: "ReLU"
-  bottom: "agg7-1-1"
-  top: "agg7-1-1"
+  bottom: "fc7_1_1"
+  top: "fc7_1_1"
 }
 layer {
-  name: "drop7-1-1"
+  name: "drop7_1_1"
   type: "Dropout"
-  bottom: "agg7-1-1"
-  top: "agg7-1-1"
+  bottom: "fc7_1_1"
+  top: "fc7_1_1"
   dropout_param {
     dropout_ratio: 0.5
   }
 }
 layer {
-  name: "score_1"
+  name: "score_fc1_1"
   type: "InnerProduct"
-  bottom: "agg7-1-1"
-  top: "score_1"
+  bottom: "fc7_1_1"
+  top: "score_fc1_1"
   param {
-    name: "score_1_w"
+    name: "score_fc1_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "score_1_b"
+    name: "score_fc1_1_b"
     lr_mult: 2
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 4
+    num_output: 1
     weight_filler {
-      type: "gaussian"
-      std: 0.01
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "score_fc1_2"
+  type: "InnerProduct"
+  bottom: "fc7_1_1"
+  top: "score_fc1_2"
+  param {
+    name: "score_fc1_2_w"
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    name: "score_fc1_2_b"
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "score_fc1_3"
+  type: "InnerProduct"
+  bottom: "fc7_1_1"
+  top: "score_fc1_3"
+  param {
+    name: "score_fc1_3_w"
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    name: "score_fc1_3_b"
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "score_fc1_4"
+  type: "InnerProduct"
+  bottom: "fc7_1_1"
+  top: "score_fc1_4"
+  param {
+    name: "score_fc1_4_w"
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    name: "score_fc1_4_b"
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "msra"
     }
     bias_filler {
       type: "constant"
@@ -594,7 +456,10 @@ layer {
 layer {
   name: "score"
   type: "Concat"
-  bottom: "score_1"
+  bottom: "score_fc1_1"
+  bottom: "score_fc1_2"
+  bottom: "score_fc1_3"
+  bottom: "score_fc1_4"
   top: "score"
   concat_param {
     axis: 1
@@ -620,8 +485,8 @@ layer {
 layer {
   name: "error"
   type: "Python"
-  bottom: "label"
   bottom: "prob"
+  bottom: "label"
   top: "error"
   python_param {
     module: "layers.multilabel_err"

@@ -4,36 +4,14 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-"""Train with branching (currently using only with multilabel classification)"""
-
-# TODOs:
-# (1) Allow user to decide how many rounds to train. In a naive implementation, the 
-#     program will assume that the user want every round of training to have exaclty the
-#     same training iterations and number of parameters etc.
-# (2) The program need to keep track of the training progress, at snapshot points it should
-#     save not only the model, but also the model file etc. so that training can be resumed.
-#     Since these models all have different train_val.prototxt and test.prototxt, to ensure
-#     that later experiments are possible we should save these prototxt files. To have seperating
-#     we should probably save files in subfolders of the output dir. 
-# Point (2) actually suggest that we should have an overhaul of the naming cache for prototxt
-# files used in training. Instead of putting in inside models/cache which is kind of hard
-# to get, we should probably try to place it alongside with the model file.
-# (3) Naming convention: it seems we should add an infix of the model indicating the round the
-#     training is at. 
-# (4) Design functions and interfaces to decide when and where to branch. 
-
-# In terms of best practices, we should defnitely use cfg file more often to ensure separation
-# of different training situations and avoid corruptions! 
-
-# Note that --exp_dir option is provided in the function already!
-
+"""Train with branching for multilabel classificaiton """
 
 import _init_paths
-from multilabel.train import train_model
+from solvers.multilabel_sw import MultiLabelSW
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 from models.factory import get_models, get_models_dir
-from models.solver import DynamicSolver
+from solvers.solver import SolverParameter
 from models.model_io import MultiLabelIO
 import caffe
 import argparse
@@ -119,6 +97,9 @@ def parse_args():
     parser.add_argument('--num_rounds', dest='num_rounds',
                         help='number of branching rounds in training',
                         default=1, type=int)
+    parser.add_argument('--snapshot_file', dest='snapshot_file',
+                        help='the file containing snapshot information used to resume training', 
+                        default=None, type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -173,25 +154,66 @@ if __name__ == '__main__':
     else:
         class_id = range(imdb['train'].num_classes)
 
-    # if solver file is not specified, dynamically generate one based on options. 
-    param_mapping = None
-    if args.solver is None:
-        # io object
-        io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
-        path = osp.join(get_models_dir(), str(os.getpid()))
-        # create solver and model
-        model, param_mapping = get_models(args.model, dict(io=io, model_name=args.model, 
-            path=path, first_low_rank=args.first_low_rank))
-        solver = DynamicSolver(model.fullpath, base_lr=args.base_lr, lr_policy=args.lr_policy, 
-            gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
-            clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
-        # save files
-        model.to_proto(deploy=False)
-        solver.to_proto()
-        args.solver = solver.solver_file()
+    # if a solver file is already specified, the training should have only one round. 
+    assert (args.solver is None) or (args.num_rounds==1), 
+        'Preloaded solver does not support branching'.format()
 
-        # TODO: the path to save really depends on the training round we are at!
-        print 'Model files saved at {}'.format(model.fullpath)
+    for train_round in xrange(args.num_rounds):
+        # if solver file is not specified, dynamically generate one based on options.
+        param_mapping = None
+        if args.solver is None and (train_round==0):
+            # io object
+            io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
+            # paths, model names and snapshot prefix should clearly specify the rounds
+            path = osp.join(output_dir, 'prototxt', 'round_{}'.format(train_round))
+            model_name = args.model + '_' + 'round_{}'.format(train_round)
+            snapshot_prefix = args.snapshot_prefix + '_' + 'round_{}'.format(train_round)
+            # in the first round, we need to create new model
+            # in the following rounds, we need to insert branches. 
+            if train_round == 0:
+                model, param_mapping = get_models(args.model, dict(io=io, model_name=model_name, 
+                    path=path, first_low_rank=args.first_low_rank))
+            else:
+                # make branching decision based on the "args.pretrained_model"
+                # br_idx, br_split = make_branch(args.pretrained_model)
 
-    train_model(imdb, args.solver, output_dir, args.pretrained_model, param_mapping, args.use_svd,  
-        args.max_iters, args.base_iter, class_id)
+                # if train_round < args.num_rounds:
+                # TODO: we need to implement this function in such a way that 
+                # it serves as a thin wrapper, with different options available for choosing.
+                # The commonality of all such functions is that they need to know the caffemodel (to run on validation set etc.)
+                # But some of the clustering algorihtms requires testing on validation set, which means they need a dataset
+                # wrapper and a prototxt file. 
+                # We probably want to start with something simpler.
+
+                # TODO: this function should also take the model file as input. Use
+                # NetModel.list_edges() to find out all candidates for branching. 
+                # Use all the names_at* functions to find out the appropriate parameters etc. 
+
+
+                # Update path and model names
+                model.set_path(path)
+                model.set_name(model_name)
+                # idx is a tuple, (layer_idx, col_idx)
+                # split is a list of lists, each list is the index into the tops (branches)
+                # insert branch. 
+                param_mapping = model.insert_branch(br_idx, br_split)
+                class_id = model.list_tasks()
+                print 'Round {}: Create new branches {} at layer {} branch {}.'.\
+                    format(train_round, br_split, *br_idx)
+                for k,v in changes.iteritems():
+                    print 'Round {}: Net2Net initialization: {} <- {}'.format(train_round, k, v)
+            # generate solver
+            solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
+                gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
+                clip_gradients=args.clip_gradients, snapshot_prefix=snapshot_prefix)
+            # save files
+            model.to_proto(deploy=False)
+            model.to_proto(deploy=True)
+            solver.to_proto()
+            args.solver = solver.solver_file()
+
+            print 'Model files saved at {}'.format(model.path)
+
+        sw = MultiLabelSW(imdb, args.solver, output_dir, args.pretrained_model, param_mapping, args.use_svd, class_id)
+        sw.train_model(args.max_iters, args.base_iter)
+        args.pretrained_model = sw.snapshot_name(args.base_iter)
