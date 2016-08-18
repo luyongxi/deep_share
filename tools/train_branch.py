@@ -10,9 +10,10 @@ import _init_paths
 from solvers.multilabel_sw import MultiLabelSW
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
-from models.factory import get_models, get_models_dir
+from models.factory import get_models
 from solvers.solver import SolverParameter
 from models.model_io import MultiLabelIO
+from models.branch import branch_linear_combination
 import caffe
 import argparse
 import pprint
@@ -97,9 +98,9 @@ def parse_args():
     parser.add_argument('--num_rounds', dest='num_rounds',
                         help='number of branching rounds in training',
                         default=1, type=int)
-    parser.add_argument('--snapshot_file', dest='snapshot_file',
-                        help='the file containing snapshot information used to resume training', 
-                        default=None, type=str)
+    # parser.add_argument('--snapshot_file', dest='snapshot_file',
+    #                     help='the file containing snapshot information used to resume training', 
+    #                     default=None, type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -155,13 +156,15 @@ if __name__ == '__main__':
         class_id = range(imdb['train'].num_classes)
 
     # if a solver file is already specified, the training should have only one round. 
-    assert (args.solver is None) or (args.num_rounds==1), 
+    assert (args.solver is None) or (args.num_rounds==1),\
         'Preloaded solver does not support branching'.format()
 
+    solver_file = args.solver
+    cur_pretrained_model = args.pretrained_model
     for train_round in xrange(args.num_rounds):
         # if solver file is not specified, dynamically generate one based on options.
         param_mapping = None
-        if args.solver is None and (train_round==0):
+        if args.solver is None:
             # io object
             io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
             # paths, model names and snapshot prefix should clearly specify the rounds
@@ -171,25 +174,11 @@ if __name__ == '__main__':
             # in the first round, we need to create new model
             # in the following rounds, we need to insert branches. 
             if train_round == 0:
-                model, param_mapping = get_models(args.model, dict(io=io, model_name=model_name, 
-                    path=path, first_low_rank=args.first_low_rank))
+                print 'Round {}: Model initialization...'.format(train_round)
+                model, param_mapping = get_models(args.model, io=io, model_name=model_name, 
+                    path=path, first_low_rank=args.first_low_rank)
             else:
-                # make branching decision based on the "args.pretrained_model"
-                # br_idx, br_split = make_branch(args.pretrained_model)
-
-                # if train_round < args.num_rounds:
-                # TODO: we need to implement this function in such a way that 
-                # it serves as a thin wrapper, with different options available for choosing.
-                # The commonality of all such functions is that they need to know the caffemodel (to run on validation set etc.)
-                # But some of the clustering algorihtms requires testing on validation set, which means they need a dataset
-                # wrapper and a prototxt file. 
-                # We probably want to start with something simpler.
-
-                # TODO: this function should also take the model file as input. Use
-                # NetModel.list_edges() to find out all candidates for branching. 
-                # Use all the names_at* functions to find out the appropriate parameters etc. 
-
-
+                br_idx, br_split = branch_linear_combination(cur_pretrained_model, model)
                 # Update path and model names
                 model.set_path(path)
                 model.set_name(model_name)
@@ -198,10 +187,15 @@ if __name__ == '__main__':
                 # insert branch. 
                 param_mapping = model.insert_branch(br_idx, br_split)
                 class_id = model.list_tasks()
-                print 'Round {}: Create new branches {} at layer {} branch {}.'.\
-                    format(train_round, br_split, *br_idx)
-                for k,v in changes.iteritems():
-                    print 'Round {}: Net2Net initialization: {} <- {}'.format(train_round, k, v)
+                print 'Round {}: Creating new branches at layer {} branch {}...'.\
+                    format(train_round, *br_idx)
+                print 'Split 0: {}'.format(br_split[0])
+                print 'Split 1: {}'.format(br_split[1])
+                for k,v in param_mapping.iteritems():
+                    print 'Round {}: Net2Net initialization: {} <- {}'.format(train_round, k[0], v)
+                # print '{Round {}: class index: {}'.format(class_id)
+                # TODO: we need to print something that helps to interpret the branching and task structure association
+                # For example, can we find out all the edges, and list out their tasks?
             # generate solver
             solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
                 gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
@@ -210,10 +204,10 @@ if __name__ == '__main__':
             model.to_proto(deploy=False)
             model.to_proto(deploy=True)
             solver.to_proto()
-            args.solver = solver.solver_file()
+            solver_file = solver.solver_file()
 
             print 'Model files saved at {}'.format(model.path)
 
-        sw = MultiLabelSW(imdb, args.solver, output_dir, args.pretrained_model, param_mapping, args.use_svd, class_id)
+        sw = MultiLabelSW(imdb, solver_file, output_dir, cur_pretrained_model, param_mapping, args.use_svd, class_id)
         sw.train_model(args.max_iters, args.base_iter)
-        args.pretrained_model = sw.snapshot_name(args.base_iter)
+        cur_pretrained_model = sw.snapshot_name(args.base_iter)

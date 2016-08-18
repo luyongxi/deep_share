@@ -417,32 +417,6 @@ layer {
   }
 }
 layer {
-  name: "score_fc1_2"
-  type: "InnerProduct"
-  bottom: "fc7_1_1"
-  top: "score_fc1_2"
-  param {
-    name: "score_fc1_2_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "score_fc1_2_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 1
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
   name: "score_fc2_1"
   type: "InnerProduct"
   bottom: "fc7_1_2"
@@ -495,12 +469,38 @@ layer {
   }
 }
 layer {
+  name: "score_fc2_3"
+  type: "InnerProduct"
+  bottom: "fc7_1_2"
+  top: "score_fc2_3"
+  param {
+    name: "score_fc2_3_w"
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    name: "score_fc2_3_b"
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
   name: "score"
   type: "Concat"
   bottom: "score_fc1_1"
-  bottom: "score_fc1_2"
   bottom: "score_fc2_1"
   bottom: "score_fc2_2"
+  bottom: "score_fc2_3"
   top: "score"
   concat_param {
     axis: 1

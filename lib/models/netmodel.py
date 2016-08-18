@@ -135,7 +135,7 @@ class NetModel(object):
         left = split[0]
         right = split[1]
         tops = self._net_graph[idx[0]][idx[1]].top_idx
-        assert set(tops)-set(left)==set(right), 'The splitting does not form a partition of tops.'
+        assert set(range(len(tops)))-set(left)==set(right), 'The splitting does not form a partition of tops.'
         assert idx[0]>0, 'Cannot create new branches at the bottom.'
 
         # insert a new branch, keep track of the parameters.
@@ -165,9 +165,9 @@ class NetModel(object):
         changes[(idx[0], right_idx)] = (idx[0],idx[1])
         # branches
         for k1 in xrange(len(left)):
-            changes[(idx[0], idx[1], k1)] = (idx[0], idx[1], tops[left[k1]])
+            changes[(idx[0], idx[1], k1)] = (idx[0], idx[1], left[k1])
         for k2 in xrange(len(right)):
-            changes[idx[0], right_idx, k2] = (idx[0], idx[1], tops[right[k2]])
+            changes[idx[0], right_idx, k2] = (idx[0], idx[1], right[k2])
         # layer i-1
         # branches
         changes[(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)] = (idx[0]-1, bottom_idx, branch_idx)
@@ -191,7 +191,7 @@ class NetModel(object):
                 # if layer idx is 0, then the layer below is the shared input
                 if self._net_graph[layer_idx][col_idx].is_edge():
                     edges += [(layer_idx, col_idx)]
-
+        
         return edges
 
     def tasks_at(self, i, j, k=None):

@@ -170,8 +170,8 @@ if __name__ == '__main__':
         io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
         path = osp.join(output_dir, 'prototxt')
         # create solver and model
-        model, param_mapping = get_models(args.model, dict(io=io, model_name=args.model, 
-            path=path, first_low_rank=args.first_low_rank))
+        model, param_mapping = get_models(args.model, io=io, model_name=args.model, 
+            path=path, first_low_rank=args.first_low_rank)
         solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
             gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
             clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)

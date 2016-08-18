@@ -309,6 +309,47 @@ layer {
   }
 }
 layer {
+  name: "fc6_1_2"
+  type: "InnerProduct"
+  bottom: "pool5_1_1"
+  top: "fc6_1_2"
+  param {
+    name: "fc6_1_2_w"
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    name: "fc6_1_2_b"
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 4096
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
+  name: "relu6_1_2"
+  type: "ReLU"
+  bottom: "fc6_1_2"
+  top: "fc6_1_2"
+}
+layer {
+  name: "drop6_1_2"
+  type: "Dropout"
+  bottom: "fc6_1_2"
+  top: "fc6_1_2"
+  dropout_param {
+    dropout_ratio: 0.5
+  }
+}
+layer {
   name: "fc7_1_1"
   type: "InnerProduct"
   bottom: "fc6_1_1"
@@ -350,217 +391,17 @@ layer {
   }
 }
 layer {
-  name: "data"
-  type: "Python"
-  top: "Python1"
-  top: "Python2"
-  include {
-    phase: TRAIN
-  }
-  python_param {
-    module: "layers.multilabel_data"
-    layer: "MultiLabelData"
-    param_str: "class_list: [0, 1, 2, 3]\nnum_classes: 4\nstage: TRAIN\n"
-  }
-}
-layer {
-  name: "Convolution1"
-  type: "Convolution"
-  bottom: "Python1"
-  top: "Convolution1"
-  param {
-    name: "conv1_1_1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "conv1_1_1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 96
-    bias_term: true
-    pad: 0
-    kernel_size: 7
-    stride: 2
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "Pooling1"
-  type: "Pooling"
-  bottom: "Convolution1"
-  top: "Pooling1"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
-    pad: 0
-  }
-}
-layer {
-  name: "Convolution2"
-  type: "Convolution"
-  bottom: "Pooling1"
-  top: "Convolution2"
-  param {
-    name: "conv2_1_1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "conv2_1_1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 256
-    bias_term: true
-    pad: 1
-    kernel_size: 5
-    stride: 2
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "Pooling2"
-  type: "Pooling"
-  bottom: "Convolution2"
-  top: "Pooling2"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
-    pad: 0
-  }
-}
-layer {
-  name: "Convolution3"
-  type: "Convolution"
-  bottom: "Pooling2"
-  top: "Convolution3"
-  param {
-    name: "conv3_1_1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "conv3_1_1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 512
-    bias_term: true
-    pad: 1
-    kernel_size: 3
-    stride: 1
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "Convolution4"
-  type: "Convolution"
-  bottom: "Convolution3"
-  top: "Convolution4"
-  param {
-    name: "conv4_1_1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "conv4_1_1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 512
-    bias_term: true
-    pad: 1
-    kernel_size: 3
-    stride: 1
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "Convolution5"
-  type: "Convolution"
-  bottom: "Convolution4"
-  top: "Convolution5"
-  param {
-    name: "conv5_1_1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "conv5_1_1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 512
-    bias_term: true
-    pad: 1
-    kernel_size: 3
-    stride: 1
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "Pooling3"
-  type: "Pooling"
-  bottom: "Convolution5"
-  top: "Pooling3"
-  pooling_param {
-    pool: MAX
-    kernel_size: 3
-    stride: 2
-    pad: 0
-  }
-}
-layer {
-  name: "InnerProduct1"
+  name: "fc7_2_1"
   type: "InnerProduct"
-  bottom: "Pooling3"
-  top: "InnerProduct1"
+  bottom: "fc6_1_2"
+  top: "fc7_2_1"
   param {
-    name: "fc6_1_1_w"
+    name: "fc7_2_1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "fc6_1_1_b"
+    name: "fc7_2_1_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -576,42 +417,16 @@ layer {
   }
 }
 layer {
-  name: "fc7_1_2"
-  type: "InnerProduct"
-  bottom: "InnerProduct1"
-  top: "fc7_1_2"
-  param {
-    name: "fc7_1_2_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "fc7_1_2_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 4096
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "relu7_1_2"
+  name: "relu7_2_1"
   type: "ReLU"
-  bottom: "fc7_1_2"
-  top: "fc7_1_2"
+  bottom: "fc7_2_1"
+  top: "fc7_2_1"
 }
 layer {
-  name: "drop7_1_2"
+  name: "drop7_2_1"
   type: "Dropout"
-  bottom: "fc7_1_2"
-  top: "fc7_1_2"
+  bottom: "fc7_2_1"
+  top: "fc7_2_1"
   dropout_param {
     dropout_ratio: 0.5
   }
@@ -633,84 +448,6 @@ layer {
   }
   inner_product_param {
     num_output: 1
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "score_fc1_2"
-  type: "InnerProduct"
-  bottom: "fc7_1_1"
-  top: "score_fc1_2"
-  param {
-    name: "score_fc1_2_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "score_fc1_2_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 1
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "fc6_1_2"
-  type: "InnerProduct"
-  bottom: "pool5_1_1"
-  top: "fc6_1_2"
-  param {
-    name: "fc6_1_2_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "fc6_1_2_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 4096
-    weight_filler {
-      type: "msra"
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-layer {
-  name: "fc7_2_1"
-  type: "InnerProduct"
-  bottom: "fc6_1_2"
-  top: "fc7_2_1"
-  param {
-    name: "fc7_2_1_w"
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    name: "fc7_2_1_b"
-    lr_mult: 2
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 4096
     weight_filler {
       type: "msra"
     }
@@ -773,12 +510,38 @@ layer {
   }
 }
 layer {
+  name: "score_fc2_3"
+  type: "InnerProduct"
+  bottom: "fc7_2_1"
+  top: "score_fc2_3"
+  param {
+    name: "score_fc2_3_w"
+    lr_mult: 1
+    decay_mult: 1
+  }
+  param {
+    name: "score_fc2_3_b"
+    lr_mult: 2
+    decay_mult: 0
+  }
+  inner_product_param {
+    num_output: 1
+    weight_filler {
+      type: "msra"
+    }
+    bias_filler {
+      type: "constant"
+      value: 0
+    }
+  }
+}
+layer {
   name: "score"
   type: "Concat"
   bottom: "score_fc1_1"
-  bottom: "score_fc1_2"
   bottom: "score_fc2_1"
   bottom: "score_fc2_2"
+  bottom: "score_fc2_3"
   top: "score"
   concat_param {
     axis: 1
@@ -810,35 +573,5 @@ layer {
   python_param {
     module: "layers.multilabel_err"
     layer: "MultiLabelErr"
-  }
-}
-layer {
-  name: "relu6_1_2"
-  type: "ReLU"
-  bottom: "fc6_1_2"
-  top: "fc6_1_2"
-}
-layer {
-  name: "drop6_1_2"
-  type: "Dropout"
-  bottom: "fc6_1_2"
-  top: "fc6_1_2"
-  dropout_param {
-    dropout_ratio: 0.5
-  }
-}
-layer {
-  name: "relu7_2_1"
-  type: "ReLU"
-  bottom: "fc7_2_1"
-  top: "fc7_2_1"
-}
-layer {
-  name: "drop7_2_1"
-  type: "Dropout"
-  bottom: "fc7_2_1"
-  top: "fc7_2_1"
-  dropout_param {
-    dropout_ratio: 0.5
   }
 }

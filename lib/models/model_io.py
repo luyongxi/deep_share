@@ -91,8 +91,9 @@ class MultiLabelIO(ModelIO):
         task_layer_list = []
         for j in xrange(len(bottom_dict)):
             if use_basis:
-                basis_name = 'score_basis_{}'.format(j+1) + self.postfix
-                basis_name = 'score_basis' + self._post_fix_at(j)
+                # basis_name = 'score_basis_{}'.format(j+1) + self.postfix
+                # basis_name = 'score_basis' + self._post_fix_at(j)
+                basis_name = self.col_name_at_j(j)
                 param_names = {'weights': 'score_basis_w', 'bias': 'score_basis_b'}
                 lh.add_fc(net, bottom=bottom_dict[j][1], name=basis_name, param_name=param_names, 
                     nout=num_filters, lr_factor=1, std='linear')
@@ -102,7 +103,8 @@ class MultiLabelIO(ModelIO):
 
             # each task gets its own layer
             for k in xrange(bottom_dict[j][0]): 
-                blob_name = 'score_fc' + self._post_fix_at(j, k)
+                # blob_name = 'score_fc' + self._post_fix_at(j, k)
+                blob_name = self.branch_name_at_j_k(j,k)
                 filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
                 lh.add_fc(net, bottom=bottom, name=blob_name, param_name=filter_names, 
                     nout=1, lr_factor=1, std='ReLu')

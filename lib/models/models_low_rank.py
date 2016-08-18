@@ -60,12 +60,6 @@ class ModelsLowRank(NetModel):
         self._include_pooling = include_pooling
         self._include_dropout = include_dropout
 
-        # prototxt files
-        self._deploy_net = caffe.NetSpec()
-        self._train_net = caffe.NetSpec()
-        self._val_net = caffe.NetSpec()
-        self._deploy_str = ''
-
     def _layer_type(self, i):
         """Return type of the layer """
         if i == self.num_layers:
@@ -246,9 +240,9 @@ class ModelsLowRank(NetModel):
             for j in xrange(self.num_cols_at(i)):
                 names = self.names_at_i_j(i, j)
                 if names.has_key('basis'):
-                    param_mapping[names['basis']] = names['basis']
+                    param_mapping[(names['basis'], )] = names['basis']
                 for agg_name in names['agg']:
-                    param_mapping[agg_name] = agg_name
+                    param_mapping[(agg_name,)] = agg_name
 
         for target, src in changes.iteritems():
             if len(target) == 2:
@@ -258,28 +252,31 @@ class ModelsLowRank(NetModel):
                 if self._use_basis(i):
                     name = self.col_name_at_i_j(i, j)
                     name1 = self.col_name_at_i_j(i1, j1)
-                    param_mapping[name] = name1
+                    param_mapping[(name,)] = name1
             elif len(target) == 3:
                 # branches
                 i, j, k = target
                 i1, j1, k1 = src
                 name =  self.branch_name_at_i_j_k(i, j, k)
                 name1 =  self.branch_name_at_i_j_k(i1, j1, k1)
-                param_mapping[name] = name1
+                param_mapping[(name,)] = name1
 
         return param_mapping
 
     def _update_deploy_net(self):
         """ Update deploy net. """
+        self._deploy_net = caffe.NetSpec()
         data = self._add_input_layers(self._deploy_net, deploy=True)
         bottom_dict = self._add_intermediate_layers(self._deploy_net, data)
         self._add_output_layers(self._deploy_net, bottom_dict, deploy=True)
         # add input definition strings.
         self._deploy_str='input: {}\ninput_dim: {}\ninput_dim: {}\ninput_dim: {}\ninput_dim: {}'.\
-            format('"'+self.io.data_name+'"', 1, 1, 224, 224)
+            format('"'+self.io.data_name+'"', 1, 3, 224, 224)
 
     def _update_trainval_net(self):
         """ Update trainval net. """
+        self._train_net = caffe.NetSpec()
+        self._val_net = caffe.NetSpec()
         in_nets = {'train': self._train_net, 'val': self._val_net}
         data = self._add_input_layers(in_nets, deploy=False)
         bottom_dict = self._add_intermediate_layers(self._train_net, data)
@@ -311,7 +308,7 @@ if __name__ == '__main__':
 
     # Create a branch
     branch = ModelsLowRank(model_name='branch_5-layer', path='branch_5-layer', io=io)
-    changes = branch.insert_branch((7,0), [[0,2],[1,3]])
+    changes = branch.insert_branch((7,0), [[0],[1,2,3]])
     for k,v in changes.iteritems():
         print '1. Network changes: {} <- {}'.format(k, v)
     print branch.list_tasks()
