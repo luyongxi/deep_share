@@ -17,6 +17,8 @@ import caffe
 from caffe.proto import caffe_pb2
 import google.protobuf as pb2
 
+import json
+
 class MultiLabelSW(SolverWrapper):
     """ Wrapper around Caffe's solver """
     
@@ -36,10 +38,20 @@ class MultiLabelSW(SolverWrapper):
         self._num_classes = self._solver.net.layers[0].num_classes
 
         # set class list
+        self._cls_id = cls_id
         if cls_id is not None:
             self._solver.net.layers[0].set_classlist(cls_id)
             if cfg.TRAIN.USE_VAL is True:
                 self._solver.test_nets[0].layers[0].set_classlist(cls_id)
+
+    def snapshot(self, base_iter):
+        """ Save class list to the text file with the same name as caffemodel"""
+        caffename = self.snapshot_name(base_iter)
+        fn = os.path.splitext(caffename)[0] + '.clsid'
+        with open(fn, 'wb') as f:
+            f.write(json.dumps(self._cls_id))
+
+        SolverWrapper.snapshot(self, base_iter)
 
     def do_train_model(self, max_iters, base_iter):
         """Train the model with iterations=max_iters"""

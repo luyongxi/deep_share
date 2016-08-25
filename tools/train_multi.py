@@ -6,20 +6,6 @@
 
 """Train multilabel classifier """
 
-# TODO: it seems that ideally we want to have an io factory as well for the sake of managing i/o functions.
-# TODO: the combination of network architecture and io will define the appropriate use of training procedure, 
-# we probably want to abstract out the commanitiy of all training procedures, and then associate them with
-# specialities. At the end of day, we might want to register the model/io/training procedure to a single entitiy, 
-# and then use that to decide which training procedure to call etc. 
-
-# It is prudent to keep this function but use this function as a basis for this more general task. We might also
-# want to save this version as a "usable" version before proceeding, because significant code restructuring is 
-# required.
-
-# Also, how do we incorportate the model surgery procedure? Is it possible to regard it as a special way to initialize
-# the model (by somehow changing the initialization procedure in the solver.py?). Note that we may want to save snapshots
-# of this procedure, and write programs capable of resuming the training from every snapshots. 
-
 import _init_paths
 from solvers.multilabel_sw import MultiLabelSW
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
@@ -34,6 +20,7 @@ import numpy as np
 import sys, os
 import os.path as osp
 import cPickle
+import json
 
 def parse_args():
     """
@@ -94,6 +81,8 @@ def parse_args():
                         default=0.9, type=float)
     parser.add_argument('--weight_decay', dest='weight_decay',
                         default=0.0005, type=float)
+    parser.add_argument('--regularization_type', dest='regularization_type',
+                        default='L2', type=str)
     parser.add_argument('--clip_gradients', dest='clip_gradients',
                         default=None, type=float)
     parser.add_argument('--snapshot_prefix', dest='snapshot_prefix',
@@ -104,8 +93,20 @@ def parse_args():
     parser.add_argument('--first_low_rank', dest='first_low_rank',
                         help='the first layer to use low-rank factorization',
                         default=0, type=int)
+    parser.add_argument('--cut_depth', dest='cut_depth',
+                        help='the depth of the cut in the model',
+                        default=0, type=int)
+    parser.add_argument('--cut_points', dest='cut_points',
+                        help='the point in which the model is cut',
+                        default=None, type=str)
     parser.add_argument('--use_svd', dest='use_svd',
                         help='use svd to initialize',
+                        action='store_true')
+    parser.add_argument('--use_mdc', dest='use_mdc',
+                        help='use mean deivation consistency to regularize',
+                        action='store_true')
+    parser.add_argument('--share_basis', dest='share_basis',
+                        help="share basis filters", 
                         action='store_true')
     parser.add_argument('--loss', dest='loss',
                         default='Sigmoid', type=str)
@@ -159,9 +160,17 @@ if __name__ == '__main__':
 
     # parse class_id if necessary
     if args.cls_id is not None:
-        class_id = [int(id) for id in args.cls_id.split(',')]
+        # class_id = [int(id) for id in args.cls_id.split(',')]
+        class_id = json.loads(args.cls_id)
     else:
         class_id = range(imdb['train'].num_classes)
+
+    # parse cut_points if necessary
+    if args.cut_points is not None:
+        cut_points = json.loads(args.cut_points)
+        # cut_points = []
+        # for cut in args.cut_points:
+        #     cut_points.append([int(id) for id in cut.split(',')])
 
     # if solver file is not specified, dynamically generate one based on options. 
     param_mapping = None
@@ -171,10 +180,13 @@ if __name__ == '__main__':
         path = osp.join(output_dir, 'prototxt')
         # create solver and model
         model, param_mapping = get_models(args.model, io=io, model_name=args.model, 
-            path=path, first_low_rank=args.first_low_rank)
+            path=path, first_low_rank=args.first_low_rank, use_mdc=args.use_mdc,
+            share_basis=args.share_basis, cut_depth=args.cut_depth, cut_points=cut_points)
+        # the orders in class list might shift if a cut is specified. 
+        class_id = [class_id[t] for t in model.list_tasks()]
         solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
             gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
-            clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
+            regularization_type=args.regularization_type, clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
         # save files
         model.to_proto(deploy=False)
         model.to_proto(deploy=True)
@@ -183,6 +195,7 @@ if __name__ == '__main__':
 
         print 'Model files saved at {}'.format(model.path)
 
+    print "Class list: {}".format(class_id)
     sw = MultiLabelSW(imdb, args.solver, output_dir, args.pretrained_model, 
         param_mapping, args.use_svd, class_id)
     sw.train_model(args.max_iters, args.base_iter)

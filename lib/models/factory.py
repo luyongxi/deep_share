@@ -2,6 +2,7 @@
 
 """ Model registry, all valid models are registred in this module. """
 
+from netmodel import reduce_param_mapping
 from models_low_rank import ModelsLowRank
 from model_io import MultiLabelIO
 import os.path as osp
@@ -32,6 +33,22 @@ def list_models():
     """ List all registred models."""
     return __models.keys()
 
+def _cut_network(model, param_mapping, cut_depth, cut_points):
+    """ Cut the netwrok along two sets of tasks """
+    # support network with two specialist branches
+    num_layers = model.num_layers
+    if cut_depth > 0:
+        mappings = [param_mapping]
+        for cur_layer in xrange(num_layers, num_layers-cut_depth, -1):
+            # first cut
+            if cur_layer == num_layers:
+                mappings.append(model.insert_branch((cur_layer, 0), cut_points))
+            else:
+                mappings.append(model.insert_branch((cur_layer, 0), [[0],[1]]))
+        param_mapping = reduce_param_mapping(mappings)
+
+    return model, param_mapping
+
 def _low_vgg_m_gen(io, model_name, path, **kwargs):
     """ Low rank VGG-M with two fully connected layers. """
 
@@ -40,6 +57,16 @@ def _low_vgg_m_gen(io, model_name, path, **kwargs):
     else:
         first_low_rank = 0
 
+    if kwargs.has_key('use_mdc'):
+        use_mdc = kwargs['use_mdc']
+    else:
+        use_mdc = False
+
+    if kwargs.has_key('share_basis'):
+        share_basis = kwargs['share_basis']
+    else:
+        share_basis = False
+
     num_filters = {'conv': {0:12, 1:32, 2:64, 3:64, 4:64}, 
                     'fc': {5: 512, 6: 512}, 'output': {7:512}}
     num_filters['conv'] = {k:v for k,v in num_filters['conv'].iteritems() if k>=first_low_rank}
@@ -47,7 +74,7 @@ def _low_vgg_m_gen(io, model_name, path, **kwargs):
     num_filters['output'] = {k:v for k,v in num_filters['output'].iteritems() if k>=first_low_rank}
 
     model = ModelsLowRank(model_name=model_name, path=path, 
-        io=io, num_filters=num_filters)
+        io=io, num_filters=num_filters, use_mdc=use_mdc, share_basis=share_basis)
 
     param_mapping = {}
     for i in xrange(model.num_layers):
@@ -58,6 +85,10 @@ def _low_vgg_m_gen(io, model_name, path, **kwargs):
         else:
             param_mapping[(model.col_name_at_i_j(i, 0), \
                 model.branch_name_at_i_j_k(i, 0, 0))] = value
+
+    # support network with two specialist branches
+    if kwargs.has_key('cut_depth') and kwargs.has_key('cut_points'):
+        model, param_mapping = _cut_network(model, param_mapping, kwargs['cut_depth'], kwargs['cut_points'])
 
     return model, param_mapping
 
@@ -78,6 +109,16 @@ def _low_vgg_16_gen(io, model_name, path, **kwargs):
         first_low_rank = kwargs['first_low_rank']
     else:
         first_low_rank = 0
+
+    if kwargs.has_key('use_mdc'):
+        use_mdc = kwargs['use_mdc']
+    else:
+        use_mdc = False
+
+    if kwargs.has_key('share_basis'):
+        share_basis = kwargs['share_basis']
+    else:
+        share_basis = False
 
     num_layers = 15     # not counting the last task layer
     # parameters for convolutional layers
@@ -112,7 +153,7 @@ def _low_vgg_16_gen(io, model_name, path, **kwargs):
         num_filters=num_filters, num_outputs=num_outputs, conv_k=conv_k, conv_ks=conv_ks, conv_pad=conv_pad,
         include_pooling=include_pooling, pool_k=pool_k, pool_ks=pool_ks, pool_pad=pool_pad,
         include_dropout=include_dropout, dropout_ratio=dropout_ratio,
-        include_lrn=include_lrn)
+        include_lrn=include_lrn, use_mdc=use_mdc, share_basis=share_basis)
 
     # find out the appropriate param_mapping for initilizaiton
     def vanila_vgg_16_names(i):
@@ -141,41 +182,8 @@ def _low_vgg_16_gen(io, model_name, path, **kwargs):
             param_mapping[(model.col_name_at_i_j(i, 0), \
                 model.branch_name_at_i_j_k(i, 0, 0))] = value
 
+    # support network with two specialist branches
+    if kwargs.has_key('cut_depth') and kwargs.has_key('cut_points'):
+        model, param_mapping = _cut_network(model, param_mapping, kwargs['cut_depth'], kwargs['cut_points'])
+
     return model, param_mapping
-
-# TODO: implement the options of cutting the network. 
-# TODO: note that the cutting procedure can start only when the
-# initial cut is provided. The function thus takes two inputs.
-# One is a number specifying how many cuts to be made, the
-# other is a list with two elements that are lists, and 
-# the elements represents a group of tasks. 
-
-
-# names of the arguments
-# cut_depth: [default: 0]
-# task_split: []
-
-# put these lines of codes before the last line
-# return model, param_mapping
-
-# Since this is likely to be used in more than once places
-# We should write a function called create_branch_from_plain(cut_depth, model, param_mapping)
-# This function should return the new model the param_mapping summarizing the old and the new. 
-
-# if kwargs.has_key('cut_depth'):
-#     if kwargs['cut_depth'] > 0:
-#         # TODO: assert that kwargs['cut_depth'] < num_layers)
-
-#         mappings = [param_mapping]
-
-#         for d in xrange(kwargs['cut_depth']):
-#             # TODO: we to decide the appropriate br_idx and split_idx
-#             # br_idx can be determined in a deterministic fashion
-#             # We want to have (15, 0), (14, 0), .. all the way towards the end
-#             # we start from br_idx_init = num_layers
-#             # For the split_idx, the first layer is special, we should have
-#             # user-specified branches. 
-#             # But starting from the second layer, split_idx should always be [[0],[1]]
-
-#             mappings.append(model.insert_branch())
-

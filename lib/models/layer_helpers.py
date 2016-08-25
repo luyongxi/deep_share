@@ -18,11 +18,15 @@ def get_init_params(std):
     bias_filler = {'type': 'constant', 'value': 0}
     return weight_filler, bias_filler
 
-def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0.01):
+def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0.01, use_mdc=False):
     """Add a convolutional layer """
     # names of the parameters
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
+    if use_mdc:
+        param[0]['local_decay_mult'] = lr_factor
+        param[0]['local_decay_type'] = "MDC"
+        param[0]['local_beta'] = 10
     # weight filler
     weight_filler, bias_filler = get_init_params(std)
     # set up the layer
@@ -30,10 +34,14 @@ def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0
         stride=ks, pad=pad, num_output=nout, bias_term=True, weight_filler=weight_filler, 
         bias_filler=bias_filler))
 
-def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01):
+def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01, use_mdc=False):
     """Add a fully-connected layer """
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
+    if use_mdc:
+        param[0]['local_decay_mult'] = lr_factor
+        param[0]['local_decay_type'] = "MDC"
+        param[0]['local_beta'] = 10
     # weight filler
     weight_filler, bias_filler = get_init_params(std)
     # set up the layer

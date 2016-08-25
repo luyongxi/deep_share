@@ -36,7 +36,8 @@ class ModelsLowRank(NetModel):
         conv_k=_default_conv_k, conv_ks=_default_conv_ks, conv_pad=_default_conv_pad,
         pool_k=_default_pool_k, pool_ks=_default_pool_ks, pool_pad=_default_pool_pad,
         dropout_ratio=_default_dropout_ratio, include_lrn=_default_include_lrn, 
-        include_pooling=_default_include_pooling, include_dropout=_default_include_dropout):
+        include_pooling=_default_include_pooling, include_dropout=_default_include_dropout,
+        use_mdc=False, share_basis=False):
         """
             Initialize a network model with low-rank structure.
             Inputs:
@@ -59,6 +60,8 @@ class ModelsLowRank(NetModel):
         self._include_lrn = include_lrn
         self._include_pooling = include_pooling
         self._include_dropout = include_dropout
+        self._use_mdc = use_mdc
+        self._share_basis= share_basis
 
     def _layer_type(self, i):
         """Return type of the layer """
@@ -87,7 +90,10 @@ class ModelsLowRank(NetModel):
 
         kwargs=dict(bottom_dict=new_bottom_dict, deploy=deploy)
         if self._use_basis(self.num_layers):
-            kwargs['num_filters'] = self._num_filters['output'][self.num_layers]
+            kwargs['num_filters'] = self._num_filters['output'][self.num_layers] 
+
+        kwargs['use_mdc'] = self._use_mdc
+        kwargs['share_basis'] = self._share_basis
 
         self.io.add_output(net, **kwargs)
 
@@ -112,7 +118,10 @@ class ModelsLowRank(NetModel):
             # use basis filter only if num_filters is specified for this layer. 
             if self._use_basis(i):
                 blob_name = self.col_name_at_i_j(i,j)
-                blob_param_name = blob_name.split('_')[0]
+                if self._share_basis:
+                    blob_param_name = blob_name.split('_')[0]
+                else:
+                    blob_param_name = blob_name
                 filter_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 # basis filter
                 lh.add_conv(net, bottom=bottom_dict[j], name=blob_name, param_name=filter_names, k=self._conv_k[i], 
@@ -124,10 +133,11 @@ class ModelsLowRank(NetModel):
                 if self._use_basis(i):
                     # linear combination
                     lh.add_conv(net, bottom=net[blob_name], name=br_name, param_name=conv_names, k=1, 
-                        ks=1, pad=0, nout=self._num_outputs['conv'][i], std='ReLu')
+                        ks=1, pad=0, nout=self._num_outputs['conv'][i], std='ReLu', use_mdc=self._use_mdc)
                 else:
                     lh.add_conv(net, bottom=bottom_dict[j], name=br_name, param_name=conv_names, k=self._conv_k[i], 
-                        ks=self._conv_ks[i], pad=self._conv_pad[i], nout=self._num_outputs['conv'][i], std='ReLu')
+                        ks=self._conv_ks[i], pad=self._conv_pad[i], nout=self._num_outputs['conv'][i], 
+                        std='ReLu', use_mdc=self._use_mdc)
 
                 # bottom set used for the next layer
                 new_bottom_dict[self.tops_at(i,j,k)] = net[br_name]
@@ -158,7 +168,10 @@ class ModelsLowRank(NetModel):
             # use basis filter only if num_filters is specified for this layer. 
             if self._use_basis(i):
                 blob_name = self.col_name_at_i_j(i, j)
-                blob_param_name = blob_name.split('_')[0]
+                if self._share_basis:
+                    blob_param_name = blob_name.split('_')[0]
+                else:
+                    blob_param_name = blob_name
                 filter_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 # basis filter
                 lh.add_fc(net, bottom=bottom_dict[j], name=blob_name, param_name=filter_names, 
@@ -170,10 +183,10 @@ class ModelsLowRank(NetModel):
                 if self._use_basis(i):
                     # linear combination
                     lh.add_fc(net, bottom=net[blob_name], name=br_name, param_name=conv_names,
-                        nout=self._num_outputs['fc'][i], std='ReLu')
+                        nout=self._num_outputs['fc'][i], std='ReLu', use_mdc=self._use_mdc)
                 else:
                     lh.add_fc(net, bottom=bottom_dict[j], name=br_name, param_name=conv_names, 
-                        nout=self._num_outputs['fc'][i], std='ReLu')                    
+                        nout=self._num_outputs['fc'][i], std='ReLu', use_mdc=self._use_mdc)                    
                 # bottom set used for the next layer
                 new_bottom_dict[self.tops_at(i,j,k)] = net[br_name]
                 # add ReLu

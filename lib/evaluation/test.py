@@ -14,6 +14,7 @@ def multilabel_test(net, imdb, cls_idx):
 
     if cls_idx is None:
         cls_idx = np.arange(imdb.num_classes)
+
     num_classes = len(cls_idx)
     num_images = imdb.num_images
 

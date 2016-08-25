@@ -12,8 +12,6 @@ rounds=$8
 set -x
 set -e
 
-# TODO: change this script to something that runs train_branch.py
-
 export PYTHONUNBUFFERED="True"
 
 LOG="../logs/train_dynamic_branch_$5_loss_[model=$model,lr=$base_lr,first_low_rank=$first_low_rank].txt.`date +'%Y-%m-%d_%H-%M-%S'`"
@@ -34,6 +32,6 @@ time ./tools/train_branch.py --gpu 0 \
     --first_low_rank $first_low_rank \
     --use_svd \
     --exp low-vgg16-branch-$first_low_rank-$loss \
-    --weights data/pretrained/gender.caffemodel \
     --num_rounds $rounds \
-    --stepsize $stepsize
+    --stepsize $stepsize \
+    --weights data/pretrained/gender.caffemodel

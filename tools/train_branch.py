@@ -21,6 +21,7 @@ import numpy as np
 import sys, os
 import os.path as osp
 import cPickle
+import json
 
 def parse_args():
     """Parse input arguments """
@@ -79,6 +80,8 @@ def parse_args():
                         default=0.9, type=float)
     parser.add_argument('--weight_decay', dest='weight_decay',
                         default=0.0005, type=float)
+    parser.add_argument('--regularization_type', dest='regularization_type',
+                        default='L2', type=str)
     parser.add_argument('--clip_gradients', dest='clip_gradients',
                         default=None, type=float)
     parser.add_argument('--snapshot_prefix', dest='snapshot_prefix',
@@ -91,6 +94,12 @@ def parse_args():
                         default=0, type=int)
     parser.add_argument('--use_svd', dest='use_svd',
                         help='use svd to initialize',
+                        action='store_true')
+    parser.add_argument('--use_mdc', dest='use_mdc',
+                        help='use mean deivation consistency to regularize',
+                        action='store_true')
+    parser.add_argument('--share_basis', dest='share_basis',
+                        help="share basis filters", 
                         action='store_true')
     parser.add_argument('--loss', dest='loss',
                         default='Sigmoid', type=str)
@@ -151,9 +160,11 @@ if __name__ == '__main__':
 
     # parse class_id if necessary
     if args.cls_id is not None:
-        class_id = [int(id) for id in args.cls_id.split(',')]
+        # class_id = [int(id) for id in args.cls_id.split(',')]
+        class_id = json.loads(args.cls_id)
     else:
         class_id = range(imdb['train'].num_classes)
+    old_class_id = class_id
 
     # if a solver file is already specified, the training should have only one round. 
     assert (args.solver is None) or (args.num_rounds==1),\
@@ -176,9 +187,13 @@ if __name__ == '__main__':
             if train_round == 0:
                 print 'Round {}: Model initialization...'.format(train_round)
                 model, param_mapping = get_models(args.model, io=io, model_name=model_name, 
-                    path=path, first_low_rank=args.first_low_rank)
+                    path=path, first_low_rank=args.first_low_rank, use_mdc=args.use_mdc,
+                    share_basis=args.share_basis)
             else:
                 br_idx, br_split = branch_linear_combination(cur_pretrained_model, model)
+                # # Make a decision to create k branches at a (layer, col)
+                # br_idx, br_split = branch_at_round(cur_pretrained_model, model, 
+                #     layer=model.num_layers-train_round+1, col=0, k=args-num_rounds-train_round+1)
                 # Update path and model names
                 model.set_path(path)
                 model.set_name(model_name)
@@ -186,20 +201,17 @@ if __name__ == '__main__':
                 # split is a list of lists, each list is the index into the tops (branches)
                 # insert branch. 
                 param_mapping = model.insert_branch(br_idx, br_split)
-                class_id = model.list_tasks()
+                class_id = [old_class_id[t] for t in model.list_tasks()]
                 print 'Round {}: Creating new branches at layer {} branch {}...'.\
                     format(train_round, *br_idx)
-                print 'Split 0: {}'.format(br_split[0])
-                print 'Split 1: {}'.format(br_split[1])
+                for i in xrange(len(br_split)):
+                    print 'Split {}: {}'.format(i, br_split[i])
                 for k,v in param_mapping.iteritems():
                     print 'Round {}: Net2Net initialization: {} <- {}'.format(train_round, k[0], v)
-                # print '{Round {}: class index: {}'.format(class_id)
-                # TODO: we need to print something that helps to interpret the branching and task structure association
-                # For example, can we find out all the edges, and list out their tasks?
             # generate solver
             solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
                 gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
-                clip_gradients=args.clip_gradients, snapshot_prefix=snapshot_prefix)
+                regularization_type=args.regularization_type, clip_gradients=args.clip_gradients, snapshot_prefix=snapshot_prefix)
             # save files
             model.to_proto(deploy=False)
             model.to_proto(deploy=True)
@@ -208,6 +220,7 @@ if __name__ == '__main__':
 
             print 'Model files saved at {}'.format(model.path)
 
+        print 'Round {}: Current class list: {}'.format(train_round, class_id)
         sw = MultiLabelSW(imdb, solver_file, output_dir, cur_pretrained_model, param_mapping, args.use_svd, class_id)
         sw.train_model(args.max_iters, args.base_iter)
         cur_pretrained_model = sw.snapshot_name(args.base_iter)

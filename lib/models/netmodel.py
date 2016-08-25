@@ -16,14 +16,52 @@ def reduce_param_mapping(mappings):
                 equivalent of applying the mappings
                 on the "mappings" sequentially.
     """
-    param_mapping = {}
-    for new_mapping in mappings:
-        for k, v in new_mapping.iteritems():
-            if param_mapping.has_key(v):
-                param_mapping[k] = param_mapping[v]
-            else:
-                param_mapping[k] = v
-    return param_mapping
+    bulk_mapping = {}
+    for this_mapping in mappings:
+        # keys are tuples, values are strings
+        temp = {}
+        key_reject_list = []
+        for k, v in this_mapping.iteritems():
+            if k in key_reject_list:
+                continue
+
+            Klist = [old_k for old_k in bulk_mapping.keys() if v in old_k]
+
+            # if not match was found, copy the current mapping
+            if len(Klist) == 0:
+                temp[k] = v
+
+            for old_k in Klist:
+                # may need to construct len-2 tuple
+                if len(old_k) == 2:
+                    if len(k) == 2:
+                        temp[k] = bulk_mapping[old_k]
+                    elif len(k) == 1:
+                        for k1, v1 in this_mapping.iteritems():
+                            if v1 in old_k:
+                                kk = [k[0], k1[0]]
+                                idx0 = old_k.index(v)
+                                idx1 = old_k.index(v1)
+                                if (not idx0 == idx1):
+                                    temp[(kk[idx0], kk[idx1])] = bulk_mapping[old_k]
+                                    key_reject_list.extend(kk)
+                elif len(old_k)==1:
+                    temp[k] = bulk_mapping[old_k]
+        bulk_mapping = temp
+
+    # remove keys that are not on the last mapping, and
+    # remove values that are not on the first mapping
+    reduced_mapping = {}
+    last_mapping = mappings[-1]
+    first_mapping = mappings[0]
+    for k, v in bulk_mapping.iteritems():
+        if v in first_mapping.values():
+            if last_mapping.has_key(k):
+                reduced_mapping[k] = v
+            elif (len(k)==2) and (last_mapping.has_key((k[0],)) and last_mapping.has_key((k[1],))):
+                reduced_mapping[k] = v
+
+    return reduced_mapping
 
 class NetBlob(object):
     """ A structure that encodes a blob  """
@@ -120,17 +158,52 @@ class NetModel(object):
 
         return task_list
 
+    # TODO: in addition to providing the parameter mapping, 
+    # we should keep track of the layers that are created in the process.
+    # The use of this functionaltity was to keep track of the layers that are
+    # newly created. 
+    # The idea is to add noise to all linear combinations whenever a new branch is inserted
+    # to the current layer and column. An alternative is to add noise only to the coefficients
+    # to the newly-created branch. The problem of the latter is that we might end up creating
+    # a dependency based on the history. That is, a branch is always closer to the one it is
+    # created from. However, in our algorithm, a splitting that is created first is not necessarily
+    # a splitting that is more important. We should allow free grouping of branches. We need to break
+    # even without promtoing the algorithm to learn a history-dependent grouping.  
+
+    # !!! Important: Remember to ensure the all use_case of insert_branch is properly updated!
+    # !!! We are changing the output of the function, which is potentially very dangerous!
+
     def insert_branch(self, idx, split):
-        """ Create a new branch. 
+        """ 
+        Create new branches at a particular column at a particular layer
             Inputs:
                 idx: a tuple (layer_idx, col_idx), to insert the branch.
                 split: a list with two sub-lists, each are indexes into a set of tops (branches)
             Outputs:
-                changes: a dict with two keys, 'blobs' and 'branches'
-                    Only two situations: 
-                    (1) we create two new blobs from a single blob
-                    (2) We create two new branches from an old branch
+                param_mapping: mapping from old paramter names to new parameter names
         """
+        mappings = []
+        cur_split = split
+        cur_idx = idx
+        while len(cur_split)>1:
+            # create a new branch
+            left = cur_split[0]
+            right = [x for i in xrange(1, len(cur_split)) for x in cur_split[i]]
+            mappings.append(self.insert_binary_branch(cur_idx, [left, right]))
+            # update indexing to be used in the next round
+            cumsum = 0
+            temp = []
+            for i in xrange(1, len(cur_split)):
+                temp.append([j+cumsum for j in xrange(len(cur_split[i]))])
+                cumsum += len(cur_split[i])
+            cur_split = temp
+            cur_idx = (idx[0], self.num_cols_at(idx[0])-1)
+
+        return reduce_param_mapping(mappings)
+
+    def insert_binary_branch(self, idx, split):
+        """ Create a binary branch at the layer and column specifies by idx """
+        assert len(split)==2, 'Does not support more than 2 split, actual number={}'.format(len(split))
         # check if the inputs are valid
         left = split[0]
         right = split[1]

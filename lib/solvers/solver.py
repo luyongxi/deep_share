@@ -12,6 +12,11 @@ from utils.config import cfg
 import numpy as np
 from numpy.linalg import svd
 
+
+# TODO: add a function that adds small random noise to break even!
+# TODO: essentially, this function takes as input a list of parameter
+# names. These names are aggregated by a NetModel class through insert branch.
+
 class SolverWrapper(object):
     """ Wrapper for a sovler used in training. """
     def __init__(self, imdb, solver_prototxt, output_dir, pretrained_model=None, 
@@ -77,20 +82,26 @@ class SolverWrapper(object):
         model.ParseFromString(binary_content)
         layers = model.layer
 
+        weight_cache = {}
         for key, value in param_mapping.iteritems():
             # 1-1 matching, direct copy
             if len(key) == 1:
                 print 'saving net[{}] <- pretrained[{}]...'.format(key[0], value)
+                found=False
                 for layer in layers:
                     if layer.name == value:
                         self._solver.net.params[key[0]][0].data[...] = \
                             np.reshape(np.array(layer.blobs[0].data), layer.blobs[0].shape.dim) 
                         self._solver.net.params[key[0]][1].data[...] = \
                             np.reshape(np.array(layer.blobs[1].data), layer.blobs[1].shape.dim)
+                        found=True
                         print 'saving net[{}] <- pretrained[{}] done.'.format(key[0], value)
+                if not found:
+                    print '!!! pretrained[{}] not found!'.format(value)
             elif len(key) == 2:
                 if use_svd:
                     print 'saving net[{}, {}] <- pretrained[{}] ...'.format(key[0], key[1], value)
+                    found=False
                     for layer in layers:
                         if layer.name == value:
                             # use svd to initialize
@@ -100,14 +111,23 @@ class SolverWrapper(object):
                             basis_shape = self._solver.net.params[key[0]][0].data.shape
                             linear_shape = self._solver.net.params[key[1]][0].data.shape
                             # perform decomposition, save results. 
-                            B, L = self._init_params_svd(W, basis_shape[0])
+
+                            if weight_cache.has_key(value):
+                                B, L = weight_cache[value]
+                                print 'using cached svd decomposition of pretrained[{}]...'.format(value)
+                            else:
+                                B, L = self._init_params_svd(W, basis_shape[0])
+                                weight_cache[value] = (B, L)
+
                             self._solver.net.params[key[0]][0].data[...] = B.reshape(basis_shape)
                             self._solver.net.params[key[1]][0].data[...] = L.reshape(linear_shape)
                             # use the bias of the original conv filter in the linear combinations
                             self._solver.net.params[key[1]][1].data[...] = \
                                 np.reshape(np.array(layer.blobs[1].data), layer.blobs[1].shape.dim)
-
+                            found=True
                             print 'net[{}, {}] <- pretrained[{}] done.'.format(key[0], key[1], value)
+                    if not found:
+                        print '!!! pretrained[{}] not found!'.format(value)
                 else:
                     print 'use_svd is set to False, skipping net[({}, {})] <- pretrained[{}]'.\
                         format(key[0], key[1], value)
@@ -147,7 +167,7 @@ class SolverParameter(object):
 
     def __init__(self, path, base_lr=0.01, lr_policy="step", 
         gamma=0.1, stepsize=20000, momentum=0.9, weight_decay=0.0005,
-        clip_gradients=None, snapshot_prefix='default'):
+        regularization_type="L2", clip_gradients=None, snapshot_prefix='default'):
 
         self._net = osp.join(path, 'train_val.prototxt')
         self._base_lr = base_lr
@@ -156,6 +176,7 @@ class SolverParameter(object):
         self._stepsize = stepsize
         self._momentum = momentum
         self._weight_decay = weight_decay
+        self._regularization_type = regularization_type
         self._clip_gradients = clip_gradients
         self._snapshot_prefix = snapshot_prefix
 
@@ -174,6 +195,8 @@ class SolverParameter(object):
         solver.stepsize = self._stepsize
         solver.momentum = self._momentum
         solver.weight_decay = self._weight_decay
+        solver.regularization_type = self._regularization_type
+
         # caffe solver snapshotting is disabled
         solver.snapshot = 0
         solver.snapshot_prefix = self._snapshot_prefix

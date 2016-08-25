@@ -35,7 +35,7 @@ class ModelIO(object):
         """ add input layers """
         return NotImplementedError
 
-    def add_output(self, net, bottom_dict, deploy=False):
+    def add_output(self, net, bottom_dict, deploy=False, use_mdc=False, share_basis=False):
         """ add output layers """
         return NotImplementedError
 
@@ -82,7 +82,7 @@ class MultiLabelIO(ModelIO):
             lh.add_multilabel_data_layer(val_net, name=[self.data_name, self.label_names], 
                 phase=caffe.TEST, num_classes=num_classes, class_list=class_list)            
 
-    def add_output(self, net, bottom_dict, num_filters=None, deploy=False):
+    def add_output(self, net, bottom_dict, num_filters=None, deploy=False, use_mdc=False, share_basis=False):
         """ add output layers """
         # bottom_dict[k] is a tuple (num_tasks_at(i,k), bottom[k])
         # this determines the number of fc layers needed. 
@@ -94,7 +94,11 @@ class MultiLabelIO(ModelIO):
                 # basis_name = 'score_basis_{}'.format(j+1) + self.postfix
                 # basis_name = 'score_basis' + self._post_fix_at(j)
                 basis_name = self.col_name_at_j(j)
-                param_names = {'weights': 'score_basis_w', 'bias': 'score_basis_b'}
+                if share_basis:
+                    blob_param_name = basis_name.split('_')[0]
+                else:
+                    blob_param_name = basis_name
+                param_names = {'weights': blob_param_name+'_w', 'bias': blob_param_name+'_b'}
                 lh.add_fc(net, bottom=bottom_dict[j][1], name=basis_name, param_name=param_names, 
                     nout=num_filters, lr_factor=1, std='linear')
                 bottom=net[basis_name]
@@ -107,7 +111,7 @@ class MultiLabelIO(ModelIO):
                 blob_name = self.branch_name_at_j_k(j,k)
                 filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
                 lh.add_fc(net, bottom=bottom, name=blob_name, param_name=filter_names, 
-                    nout=1, lr_factor=1, std='ReLu')
+                    nout=1, lr_factor=1, std='ReLu', use_mdc=use_mdc)
                 task_layer_list.append(net[blob_name])
 
         # concatenate layers in the order specified by task_layer_list, compute the sigmoid

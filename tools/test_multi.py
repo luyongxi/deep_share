@@ -13,6 +13,7 @@ import argparse
 import pprint
 import caffe
 import sys, os
+import json
 from evaluation.test import multilabel_test
 
 def parse_args():
@@ -35,9 +36,6 @@ def parse_args():
     parser.add_argument('--imdb', dest='imdb_name',
                         help='datasets to test on',
                         default='celeba_test', type=str)
-    parser.add_argument('--cls_id', dest='cls_id',
-                        help='comma-separated list of classes to test',
-                        default=None, type=str)
     parser.add_argument('--mean_file', dest='mean_file',
                         help='the path to the mean file to be used',
                         default=None, type=str)
@@ -72,5 +70,11 @@ if __name__ == '__main__':
     net = caffe.Net(args.model, args.weights, caffe.TEST)
     net.name = os.path.splitext(os.path.basename(args.weights))[0]
 
+    # get imdb
     imdb = get_imdb(args.imdb_name)
-    multilabel_test(net, imdb, args.cls_id)
+    # parse class_id
+    classid_name = os.path.splitext(args.weights)[0] + '.clsid'
+    with open(classid_name, 'rb') as f:
+        class_id = json.loads(f.read())
+
+    multilabel_test(net, imdb, class_id)
