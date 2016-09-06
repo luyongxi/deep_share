@@ -4,7 +4,7 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-"""Test multilabel classificaiton accuracy"""
+"""Test classificaiton accuracy"""
 
 import _init_paths
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
@@ -14,13 +14,13 @@ import pprint
 import caffe
 import sys, os
 import json
-from evaluation.test import multilabel_test
+from evaluation.test import classification_test
 
 def parse_args():
     """
     Parse input arguments
     """
-    parser = argparse.ArgumentParser(description="Test clustering.")
+    parser = argparse.ArgumentParser(description="Test the performance on a dataset.")
     parser.add_argument('--gpu', dest='gpu_id',
                         help='GPU device id to use [None]',
                         default=None, type=int)
@@ -30,6 +30,9 @@ def parse_args():
     parser.add_argument('--weights', dest='weights',
                         help='trained caffemodel',
                         default=None, type=str)
+    parser.add_argument('--task_name', dest='task_name',
+                        help='the name of the task',
+                        default='multilabel',type=str)
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
                         default=None, type=str)
@@ -77,4 +80,4 @@ if __name__ == '__main__':
     with open(classid_name, 'rb') as f:
         class_id = json.loads(f.read())
 
-    multilabel_test(net, imdb, class_id)
+    classification_test(net, imdb, class_id)

@@ -109,11 +109,10 @@ class NetBlob(object):
 class NetModel(object):
     """ A model for the neural network """
 
-    def __init__(self, model_name, path, io, num_layers):
+    def __init__(self, model_name, io, num_layers):
         """ Initialize a model for neural network
             Inputs:
                 model_name: name of the model
-                path: root path to save the prototxt files
                 io: specifies the input/output, must has the following members
                     num_tasks: number of tasks (determine the number of branches 
                            of the last intermediate layers)
@@ -127,7 +126,6 @@ class NetModel(object):
                             output layers)
         """
         self._model_name = model_name
-        self._path = path
         self._io = io
         self._num_layers = num_layers
         self._init_graph(num_layers, self.num_tasks)
@@ -158,20 +156,22 @@ class NetModel(object):
 
         return task_list
 
-    # TODO: in addition to providing the parameter mapping, 
-    # we should keep track of the layers that are created in the process.
-    # The use of this functionaltity was to keep track of the layers that are
-    # newly created. 
-    # The idea is to add noise to all linear combinations whenever a new branch is inserted
-    # to the current layer and column. An alternative is to add noise only to the coefficients
-    # to the newly-created branch. The problem of the latter is that we might end up creating
-    # a dependency based on the history. That is, a branch is always closer to the one it is
-    # created from. However, in our algorithm, a splitting that is created first is not necessarily
-    # a splitting that is more important. We should allow free grouping of branches. We need to break
-    # even without promtoing the algorithm to learn a history-dependent grouping.  
+    def insert_multiple_branches(self, idx, split):
+        """ Create more than one branches 
+            A wrapper that uses insert_branch procedure to insert multiple 
+            branches. It inserts branches in ascending order of layer index
+            and col index to avoid conflicting names during the insertion
+            procedure
+        """
+        mappings = []
+        new_branches = []
+        sort_idx = [i[0] for i in sorted(enumerate(idx), key=lambda x:x[1])]
+        for i in xrange(sort_idx):
+            map_i, br_i = self.insert_branch(idx[i], split[i])
+            mappings.append(map_i)
+            new_branches.append(br_i)
 
-    # !!! Important: Remember to ensure the all use_case of insert_branch is properly updated!
-    # !!! We are changing the output of the function, which is potentially very dangerous!
+        return reduce_param_mapping, new_branches
 
     def insert_branch(self, idx, split):
         """ 
@@ -189,7 +189,8 @@ class NetModel(object):
             # create a new branch
             left = cur_split[0]
             right = [x for i in xrange(1, len(cur_split)) for x in cur_split[i]]
-            mappings.append(self.insert_binary_branch(cur_idx, [left, right]))
+            new_param_mapping, new_branches = self.insert_binary_branch(cur_idx, [left, right])
+            mappings.append(new_param_mapping)
             # update indexing to be used in the next round
             cumsum = 0
             temp = []
@@ -199,7 +200,7 @@ class NetModel(object):
             cur_split = temp
             cur_idx = (idx[0], self.num_cols_at(idx[0])-1)
 
-        return reduce_param_mapping(mappings)
+        return reduce_param_mapping(mappings), new_branches
 
     def insert_binary_branch(self, idx, split):
         """ Create a binary branch at the layer and column specifies by idx """
@@ -240,12 +241,22 @@ class NetModel(object):
         for k1 in xrange(len(left)):
             changes[(idx[0], idx[1], k1)] = (idx[0], idx[1], left[k1])
         for k2 in xrange(len(right)):
-            changes[idx[0], right_idx, k2] = (idx[0], idx[1], right[k2])
+            changes[(idx[0], right_idx, k2)] = (idx[0], idx[1], right[k2])
         # layer i-1
         # branches
         changes[(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)] = (idx[0]-1, bottom_idx, branch_idx)
 
-        return self.to_param_mapping(changes)
+        # collect names for newly created branches
+        # new_branches = [self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, branch_idx), 
+        #                 self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)]
+
+        # TODO: perhaps, we should add noise to all linear combinations!
+        # new_branches = [self.col_name_at_i_j(idx[0]-1, bottom_idx)]
+        new_branches = []
+        for k in xrange(self.num_branch_at(idx[0]-1,bottom_idx)):
+            new_branches.append(self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, k))
+
+        return self.to_param_mapping(changes), new_branches
 
     def to_param_mapping(self, changes):
         """ Convert change lists from the insert branch function to 
@@ -302,15 +313,6 @@ class NetModel(object):
     def num_tasks(self):
         return self._io.num_tasks
 
-    @property
-    def path(self):
-        """ Will save as path/train_val.prototxt, 
-            or path/test.prototxt """
-        return self._path
-
-    def set_path(self, path):
-        self._path = path
-
     def set_name(self, name):
         self._model_name = name
 
@@ -322,17 +324,16 @@ class NetModel(object):
     def io(self):
         return self._io
 
-    def to_proto(self, deploy=False):
+    def to_proto(self, path, deploy=False):
         """ Need different inputs for deploy or not """
         # check if the folder exists, if not create a new folder. 
-        folder = self.path
-        if not osp.exists(folder):
-            os.makedirs(folder)
+        if not osp.exists(path):
+            os.makedirs(path)
 
         if deploy==True:
-            fn = osp.join(folder, 'test.prototxt')
+            fn = osp.join(path, 'test.prototxt')
         else:
-            fn = osp.join(folder, 'train_val.prototxt')
+            fn = osp.join(path, 'train_val.prototxt')
 
         name_str = 'name: {}\n'.format('"'+self.model_name+'"')
         with open(fn, 'w') as f:

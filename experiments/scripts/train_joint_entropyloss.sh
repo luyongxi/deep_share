@@ -10,11 +10,11 @@ exec &> >(tee -a "$LOG")
 echo Logging output to "$LOG"
 
 cd ../..
-time ./tools/train_multi.py --gpu 0 \
+time ./tools/train_cls.py --gpu 0 \
     --solver models/joint_entropy_loss/solver.prototxt \
+    --weights data/pretrained/gender.caffemodel \
     --traindb celeba_train \
     --valdb celeba_val \
     --iters 80000 \
-    --exp vgg16_scratch
-# --weights data/pretrained/gender.caffemodel \
+    --exp joint_entropy
 

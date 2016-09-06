@@ -47,10 +47,10 @@ class ModelIO(object):
         """ provide the name of a branch """
         return NotImplementedError
 
-class MultiLabelIO(ModelIO):
-    """ IO for grouping different outputs in the a multi-label classification problem as tasks"""
+class ClassificationIO(ModelIO):
+    """ IO base-class for grouping different outputs in the a classification problem as tasks"""
 
-    def __init__(self, class_list, data_name='data', label_names='label', postfix='', loss_layer='Sigmoid'):
+    def __init__(self, class_list, data_name, label_names, postfix, loss_layer):
 
         ModelIO.__init__(self)
         self._class_list = class_list
@@ -67,20 +67,7 @@ class MultiLabelIO(ModelIO):
 
     @property
     def loss_layer(self):
-        return self._loss_layer
-    
-    def add_input(self, net, deploy=False):
-        """ add input layers """
-        class_list = self.class_list
-        num_classes = len(class_list)
-
-        if not deploy:
-            train_net = net['train']
-            val_net = net['val']
-            lh.add_multilabel_data_layer(train_net, name=[self.data_name, self.label_names], 
-                phase=caffe.TRAIN, num_classes=num_classes, class_list=class_list)
-            lh.add_multilabel_data_layer(val_net, name=[self.data_name, self.label_names], 
-                phase=caffe.TEST, num_classes=num_classes, class_list=class_list)            
+        return self._loss_layer     
 
     def add_output(self, net, bottom_dict, num_filters=None, deploy=False, use_mdc=False, share_basis=False):
         """ add output layers """
@@ -114,18 +101,11 @@ class MultiLabelIO(ModelIO):
                     nout=1, lr_factor=1, std='ReLu', use_mdc=use_mdc)
                 task_layer_list.append(net[blob_name])
 
-        # concatenate layers in the order specified by task_layer_list, compute the sigmoid
-        lh.add_concat(net, bottom=task_layer_list, name='score'+self.postfix, axis=1)
-        lh.add_sigmoid(net, bottom=net['score'+self.postfix], name='prob'+self.postfix, in_place=False)
-        if not deploy:
-            if self.loss_layer == 'Sigmoid':
-                lh.add_sigmoid_entropy_loss(net, bottom=[net['score'+self.postfix], net[self.label_names]], 
-                    name='loss'+self.postfix, loss_weight=1.0, phase=caffe.TRAIN)
-            elif self.loss_layer == 'Square':
-                lh.add_euclidean_loss(net, bottom=[net['prob'+self.postfix], net[self.label_names]], 
-                    name='loss'+self.postfix, loss_weight=1.0, phase=caffe.TRAIN)
-            lh.add_multilabel_err_layer(net, bottom=[net['prob'+self.postfix], net[self.label_names]], 
-                name='error'+self.postfix)
+        self.add_loss(net, task_layer_list, deploy)
+
+    def add_loss(self, net, task_layer_list, deploy):
+        """ Add the loss layers """
+        return NotImplementedError
 
     def _post_fix_at(self, j, k=None):
         """ Output post fix for the names at column j, [branch k] 
@@ -144,31 +124,77 @@ class MultiLabelIO(ModelIO):
         """ provide the name of a branch """
         return 'score_fc' + self._post_fix_at(j, k)
 
-# TODO: implement a classification IO
-# class ClsIO(ModelIO):
+class MultiLabelIO(ClassificationIO):
+    """ IO for grouping different outputs in the a multi-label classification problem as tasks  """
 
+    def __init__(self, class_list, data_name='data', label_names='label', postfix='', loss_layer='Sigmoid'):
 
-# class StitchSameModalityIO(ModelIO):
-#     """ Stich different I/O with the same input data together. """
+        ClassificationIO.__init__(self, class_list, data_name, label_names, postfix, loss_layer)
 
-#     def __init__(self, data_name='data', task_groups, input_layer):
-#         """task_groups is a dict, keys are names of task group (used as post-fixes), 
-#         values are instances of I/O handlers"""
-#         self.ModelIO()
-#         self._input_layer = input_layer
-#     # To allow flexibility in defining the sampling strategy when there more than one task groups, 
-#     # we need to define separated input layers for each case. That suggests the programming logics
-#     # of stiching different groups of tasks together are different. 
+    def add_input(self, net, deploy=False):
+        """ add input layers """
+        class_list = self.class_list
+        num_classes = len(class_list)
 
-#     def add_input(self, net, deploy=False):
-#         """ add input layers """
-#         # Instead of calling the functions at each layer, 
-#         # we should summarize their information (since we would rather have one input layer).
-#         # Note that we should be able to find the appropriate python layer by simply looking at the type of the concatenation.
-#         # We probably need to use different sampling policies etc. for different combinations of task sub-groups. 
+        if not deploy:
+            train_net = net['train']
+            val_net = net['val']
+            lh.add_multilabel_data_layer(train_net, name=[self.data_name, self.label_names], 
+                phase=caffe.TRAIN, num_classes=num_classes, class_list=class_list)
+            lh.add_multilabel_data_layer(val_net, name=[self.data_name, self.label_names], 
+                phase=caffe.TEST, num_classes=num_classes, class_list=class_list)
 
+    def add_loss(self, net, task_layer_list, deploy):
+        """ Add the loss layers """        
+        # concatenate layers in the order specified by task_layer_list, compute the sigmoid
+        lh.add_concat(net, bottom=task_layer_list, name='score'+self.postfix, axis=1)
+        lh.add_sigmoid(net, bottom=net['score'+self.postfix], name='prob'+self.postfix, in_place=False)
+        if not deploy:
+            if self.loss_layer == 'Sigmoid':
+                lh.add_sigmoid_entropy_loss(net, bottom=[net['score'+self.postfix], net[self.label_names]], 
+                    name='loss'+self.postfix, loss_weight=1.0, phase=caffe.TRAIN)
+            elif self.loss_layer == 'Square':
+                lh.add_euclidean_loss(net, bottom=[net['prob'+self.postfix], net[self.label_names]], 
+                    name='loss'+self.postfix, loss_weight=1.0, phase=caffe.TRAIN)
+            else:
+                print 'The layer type {} is not recognized!'.format(self.loss_layer)
+                raise
+            
+            lh.add_multilabel_err_layer(net, bottom=[net['prob'+self.postfix], net[self.label_names]], 
+                name='error'+self.postfix)
 
-#     def add_output(self, net, bottom_dict, deploy=False):
-#         """ add output layers """
-#         # TODO: implement based on self._task_groups (how?)
-#         #
+class SingleLabelIO(ClassificationIO):
+    """ IO for grouping different outputs in the a single-label classification problem as tasks"""
+
+    def __init__(self, class_list, data_name='data', label_names='label', postfix='', loss_layer='Softmax'):
+
+        ClassificationIO.__init__(self, class_list, data_name, label_names, postfix, loss_layer)
+
+    def add_input(self, net, deploy=False):
+        """ add input layers """
+        class_list = self.class_list
+        num_classes = len(class_list)
+
+        if not deploy:
+            train_net = net['train']
+            val_net = net['val']
+            lh.add_singlelabel_data_layer(train_net, name=[self.data_name, self.label_names], 
+                phase=caffe.TRAIN, num_classes=num_classes, class_list=class_list)
+            lh.add_singlelabel_data_layer(val_net, name=[self.data_name, self.label_names], 
+                phase=caffe.TEST, num_classes=num_classes, class_list=class_list)
+
+    def add_loss(self, net, task_layer_list, deploy):
+        """ Add the loss layers """        
+        # concatenate layers in the order specified by task_layer_list, compute the sigmoid
+        lh.add_concat(net, bottom=task_layer_list, name='score'+self.postfix, axis=1)
+        lh.add_softmax(net, bottom=net['score'+self.postfix], name='prob'+self.postfix, in_place=False)
+        if not deploy:
+            if self.loss_layer == 'Softmax':
+                lh.add_softmax_loss(net, bottom=[net['score'+self.postfix], net[self.label_names]], 
+                    name='loss'+self.postfix, loss_weight=1.0, phase=caffe.TRAIN)
+            else:
+                print 'The layer type {} is not recognized!'.format(self.loss_layer)
+                raise
+
+            lh.add_accuracy_layer(net, bottom=[net['prob'+self.postfix], net[self.label_names]], 
+                name='acc'+self.postfix)

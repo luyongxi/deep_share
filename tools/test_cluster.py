@@ -4,6 +4,12 @@
 
 """ Test clustering of tasks """
 
+# TODO: we should focus on clustering using the following two.
+# (1) Error correlation matrix, where groups of tasks are clustered closely when they have more correlations
+# (2) Error correlation matrix, where groups of tasks are clustered closely when they have less correlations
+
+# Let's name these two configurations ecm_pos, ecm_neg, respectively. 
+
 import _init_paths
 from evaluation.cluster import MultiLabel_CM, ClusterAffinity
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
@@ -35,8 +41,8 @@ def parse_args():
                         help='dataset to test on',
                         default='celeba_val', type=str)
     parser.add_argument('--method', dest='method',
-                        help='similarity matrix used for clustering',
-                        default='ecm', type=str)
+                        help='the method used for clustering',
+                        default='ecm_pos', type=str)
     parser.add_argument('--cls_id', dest='cls_id',
                         help='comma-separated list of classes to test',
                         default=None, type=str)
@@ -91,13 +97,15 @@ if __name__ == '__main__':
     else:
         cls_idx = None
 
-    if args.method == 'ecm':
-        # error correlation matrix
-        ecm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='ecm')
-        # ClusterAffinity(ecm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
-        ClusterAffinity(abs(ecm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)        
-    elif args.method == 'lcm':
-        # label correlation matrix
-        lcm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='lcm')
-        # ClusterAffinity(lcm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
-        ClusterAffinity(abs(lcm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+    # Need to rethink!
+
+    # if args.method == 'ecm':
+    #     # error correlation matrix
+    #     ecm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='ecm')
+    #     # ClusterAffinity(ecm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+    #     ClusterAffinity(abs(ecm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)        
+    # elif args.method == 'lcm':
+    #     # label correlation matrix
+    #     lcm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='lcm')
+    #     # ClusterAffinity(lcm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+    #     ClusterAffinity(abs(lcm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)

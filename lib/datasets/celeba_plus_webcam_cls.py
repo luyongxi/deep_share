@@ -77,7 +77,7 @@ class CelebA_Plus_Webcam_Cls(Imdb):
 
         return labels
 
-    def evaluate(self, scores, ind):
+    def evaluate(self, scores, ind, cls_idx=None):
         """ Evaluation: Report classificaiton accuracy.
             The scores is a matrix, where each row is a sample point
             and the columns are scores for each class. 
@@ -85,6 +85,8 @@ class CelebA_Plus_Webcam_Cls(Imdb):
             in fact correct label.
         """
         gt = self.gtdb['label'][ind]
+        if cls_idx is not None:
+            gt = cls_idx[gt]
         pred = np.argmax(scores, axis=1)
         acc = float(gt == pred) / len(ind)
         

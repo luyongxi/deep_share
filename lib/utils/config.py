@@ -36,11 +36,23 @@ __C.TRAIN.VAL_SIZE = 100
 # Sample frequency for validation (number of training iterations)
 __C.TRAIN.VAL_FREQ = 400
 
+# Frequency to display timer
+__C.TRAIN.TIMER_FREQ = 400
+
+# Frequency to display clustering
+__C.TRAIN.CLUSTER_FREQ = 50
+
+# Queue length to accumulate supervision information
+__C.TRAIN.SUP_LENGTH = 50
+
 # Infix to yield te path
 __C.TRAIN.SNAPSHOT_INFIX = ''
 
 # Minibatch sizes
 __C.TRAIN.IMS_PER_BATCH = 32
+
+# Random noies factor for branches
+__C.TRAIN.NOISE_FACTOR = 0.0
 
 
 ## ------------------------------------------------------------------------------
@@ -54,6 +66,9 @@ __C.TEST = edict()
 
 # standard size uesd in training and testing
 __C.SCALE = 224
+
+# a useful small value
+__C.EPS = 1e-16
 
 # Pixel mean values (BGR order) as a (1, 1, 3) array
 # These are values originally used for training VGG16

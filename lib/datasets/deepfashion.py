@@ -3,16 +3,37 @@
 # import base class
 from imdb import Imdb
 import numpy as np
-import os
+import os 
 import cPickle
 from layers.multilabel_err import compute_mle
 
-"""
-Class to manipulate CelebA dataset
-"""
+"""Class to manipulate DeepFashion dataset """
 
-class CelebA(Imdb):
-    """ Image database for CelebA dataset. """
+
+# Warning! This file is completely unusable!
+# Should thoroughly test it before registering it to datasets.factory!
+
+# TODO: Develop an interface for the DeepFashion dataset
+# That would mean a copmlete overhaul in the class list
+# Some changes in how the annotations and files lists are loaded
+# although that is similar to CelebA due to same distributor of the 
+# dataset.
+
+# TODO: Need a way to load a dataset consists of both CelebA and DeepFashion images. 
+# We can reuse the code by making a thin wrapper that uses the CelebA and DeepFashion
+# functions. Note however we need some additional interfaces annotation cross datasets
+# images, and those will be loaded as a third step. 
+
+# The the image_list and the annotation should provide exactly the same interface as a
+# single dataset interface. But when asked, this funciton should also provide information
+# about the origin of label. Is it from CelebA, DeepFashion, or is it annotated using
+# fine-tuned models? Those are important questions to answer. 
+
+# Need to pay attention to the class list. The large number of attribute classes demands
+# a better representation.
+
+class DeepFashion(Imdb):
+    """ Image database for DeepFashion dataset. """
     
     def __init__(self, split, align=False):
         name = 'celeba_'+split      
@@ -21,12 +42,12 @@ class CelebA(Imdb):
 
         Imdb.__init__(self, name)
         
-        # attribute classes    
+        # object classes    
         self._classes = \
             ['5_o_Clock_Shadow', 'Arched_Eyebrows', 'Attractive', 'Bags_Under_Eyes', 'Bald', 'Bangs', 'Big_Lips', 'Big_Nose', 'Black_Hair', 'Blond_Hair', 'Blurry', 'Brown_Hair', 'Bushy_Eyebrows', 'Chubby', 'Double_Chin', 'Eyeglasses', 'Goatee', 'Gray_Hair', 'Heavy_Makeup', 'High_Cheekbones', 'Male', 'Mouth_Slightly_Open', 'Mustache', 'Narrow_Eyes', 'No_Beard', 'Oval_Face', 'Pale_Skin', 'Pointy_Nose', 'Receding_Hairline', 'Rosy_Cheeks', 'Sideburns', 'Smiling', 'Straight_Hair', 'Wavy_Hair', 'Wearing_Earrings', 'Wearing_Hat', 'Wearing_Lipstick', 'Wearing_Necklace', 'Wearing_Necktie', 'Young']    
         
         # load image paths and annotations
-        self._data_path = os.path.join(self.data_path, 'imdb_CelebA') 
+        self._data_path = os.path.join(self.data_path, 'imdb_DeepFashion') 
         self._load_dataset(split, align)
             
     def _load_dataset(self, split, align):
@@ -149,8 +170,7 @@ class CelebA(Imdb):
         if cls_idx is None:
             cls_idx = np.arange(self.num_classes)
 
-        gt = self.gtdb['attr'][ind, :]
-        gt = gt[:, cls_idx]
+        gt = self.gtdb['attr'][ind, cls_idx]
         err = compute_mle(scores, gt)
         
         return err

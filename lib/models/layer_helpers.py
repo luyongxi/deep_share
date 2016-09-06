@@ -75,6 +75,10 @@ def add_sigmoid(net, bottom, name, in_place=True):
     """Add Sigmoid activation """
     net[name] = L.Sigmoid(bottom, in_place=in_place)
 
+def add_softmax(net, bottom, name, in_place=True):
+    """Add Sigmoid activation """
+    net[name] = L.Softmax(bottom, in_place=in_place)
+
 def add_dummy_layer(net, name):
     """Add a dummy data layer """
     net[name] = L.Layer()
@@ -97,6 +101,24 @@ def add_multilabel_data_layer(net, name, phase, num_classes, class_list=None):
     net[name[0]], net[name[1]] = L.Python(name=name[0], python_param=dict(module='layers.multilabel_data', 
         layer='MultiLabelData', param_str=param_str), include=include_dict, ntop=2)
 
+def add_singlelabel_data_layer(net, name, phase, num_classes, class_list=None):
+    """ Add a MultiLabelData layer """
+    include_dict = {'phase': phase}
+    param = {'num_classes': num_classes}
+    if phase == caffe.TRAIN:
+        param['stage'] = 'TRAIN'
+    elif phase == caffe.TEST:
+        param['stage'] = 'VAL'
+    if class_list is not None:
+        assert len(class_list) == num_classes, \
+            'Length of class list does not match number of classes {} vs {}'.\
+            format(len(class_list), num_classes)
+        param['class_list'] = class_list
+
+    param_str = yaml.dump(param)
+    net[name[0]], net[name[1]] = L.Python(name=name[0], python_param=dict(module='layers.singlelabel_data', 
+        layer='SingleLabelData', param_str=param_str), include=include_dict, ntop=2)
+
 def add_multilabel_err_layer(net, bottom, name):
     """ Add a MultilabelErr layer """
     net[name] = L.Python(bottom[0], bottom[1],  
@@ -111,6 +133,15 @@ def add_sigmoid_entropy_loss(net, bottom, name, loss_weight, phase):
     """ Add sigmoid entropy loss """
     include_dict = {'phase': phase}
     net[name] = L.SigmoidCrossEntropyLoss(bottom[0], bottom[1], loss_weight=loss_weight, include=include_dict)
+
+def add_softmax_loss(net, bottom, name, loss_weight, phase):
+    """ Add sigmoid entropy loss """
+    include_dict = {'phase': phase}
+    net[name] = L.SoftmaxWithLoss(bottom[0], bottom[1], loss_weight=loss_weight, include=include_dict)
+
+def add_accuracy_layer(net, bottom, name):
+    """ Add accuracy layer """
+    net[name] = L.Accuracy(bottom[0], bottom[1])
 
 if __name__ == '__main__':
     net = caffe.NetSpec()

@@ -31,7 +31,7 @@ class ModelsLowRank(NetModel):
     _default_include_pooling = [0,1,4]
     _default_include_dropout = [5,6]
 
-    def __init__(self, model_name, path, io, num_layers=7, 
+    def __init__(self, model_name, io, num_layers=7, 
         num_filters=_default_num_filters, num_outputs=_default_num_outputs, 
         conv_k=_default_conv_k, conv_ks=_default_conv_ks, conv_pad=_default_conv_pad,
         pool_k=_default_pool_k, pool_ks=_default_pool_ks, pool_pad=_default_pool_pad,
@@ -46,7 +46,7 @@ class ModelsLowRank(NetModel):
                             (for a single branch).
         """
         # initialize base class
-        NetModel.__init__(self, model_name, path, io, num_layers)
+        NetModel.__init__(self, model_name, io, num_layers)
         # options in the architecture
         self._num_filters = num_filters
         self._num_outputs = num_outputs
@@ -313,34 +313,33 @@ if __name__ == '__main__':
 
     # Save default model
     io = MultiLabelIO(class_list=[0,1,2,3])
-    default = ModelsLowRank(model_name='default_5-layer', path='default_5-layer', io=io)
+    default = ModelsLowRank(model_name='default_5-layer', io=io)
     print default.list_tasks()
     print default.list_edges()
-    default.to_proto(deploy=False)
-    default.to_proto(deploy=True)
+    default.to_proto('default_5-layer', deploy=False)
+    default.to_proto('default_5-layer', deploy=True)
 
     # Create a branch
-    branch = ModelsLowRank(model_name='branch_5-layer', path='branch_5-layer', io=io)
-    changes = branch.insert_branch((7,0), [[0],[1,2,3]])
+    branch = ModelsLowRank(model_name='branch_5-layer', io=io)
+    changes, _ = branch.insert_branch((7,0), [[0],[1,2,3]])
     for k,v in changes.iteritems():
         print '1. Network changes: {} <- {}'.format(k, v)
     print branch.list_tasks()
     print branch.list_edges()
     # Save new model
-    branch.to_proto(deploy=False)
-    branch.to_proto(deploy=True)
+    branch.to_proto('branch_5-layer', deploy=False)
+    branch.to_proto('branch_5-layer', deploy=True)
 
     # Deepen the branch
-    branch.set_path('branch_5-layer-second')
     branch.set_name('branch_5-layer-second')
-    changes1 = branch.insert_branch((6,0), [[0],[1]])
+    changes1, _ = branch.insert_branch((6,0), [[0],[1]])
     for k,v in changes1.iteritems():
         print '2. Network changes: {} <- {}'.format(k, v)
     print branch.list_tasks()
     print branch.list_edges()
     # Save new model
-    branch.to_proto(deploy=False)
-    branch.to_proto(deploy=True)
+    branch.to_proto('branch_5-layer-second', deploy=False)
+    branch.to_proto('branch_5-layer-second', deploy=True)
 
     reduce_param_map = reduce_param_mapping([changes, changes1])
     # print reduce_param_map

@@ -15,4 +15,5 @@ time ./tools/train_multi.py --gpu 0 \
     --weights data/pretrained/gender.caffemodel \
     --traindb celeba_train \
     --valdb celeba_val \
+    --exp joint_square \
     --iters 80000

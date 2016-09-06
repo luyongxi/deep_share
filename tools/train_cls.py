@@ -4,16 +4,13 @@
 # Written by Yongxi Lu
 #-------------------------------
 
-"""Train with branching for multilabel classificaiton """
+"""Train multilabel classifier """
 
 import _init_paths
-from solvers.multilabel_sw import MultiLabelSW
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
-from models.factory import get_models
-from solvers.solver import SolverParameter
-from models.model_io import MultiLabelIO
-from models.branch import branch_linear_combination
+from models.factory import get_models, get_io, get_sw
+from solvers.solver import SolverParameter, PretrainedParameter, ModelParameter
 import caffe
 import argparse
 import pprint
@@ -24,8 +21,10 @@ import cPickle
 import json
 
 def parse_args():
-    """Parse input arguments """
-    parser = argparse.ArgumentParser(description="Train a model for Multilabel Classification")
+    """
+    Parse input arguments
+    """
+    parser = argparse.ArgumentParser(description="Train a model for classification")
     parser.add_argument('--gpu', dest='gpu_id',
                         help='GPU device id to use [None]',
                         default=None, type=int)
@@ -38,6 +37,9 @@ def parse_args():
     parser.add_argument('--weights', dest='pretrained_model',
                         help='initialize with pretrained model weights',
                         default=None, type=str)
+    parser.add_argument('--task_name', dest='task_name',
+                        help='the name of the task',
+                        default='multilabel',type=str)
     parser.add_argument('--mean_file', dest='mean_file',
                         help='the path to the mean file to be used',
                         default=None, type=str)
@@ -89,9 +91,15 @@ def parse_args():
     # network model to use, will be overriden if --solver is specified.  
     parser.add_argument('--model', dest='model',
                         default='low-vgg-m', type=str)
-    parser.add_argument('--first_low_rank', dest='first_low_rank',
-                        help='the first layer to use low-rank factorization',
+    parser.add_argument('--last_low_rank', dest='last_low_rank',
+                        help='the last layer to use low-rank factorization',
                         default=0, type=int)
+    parser.add_argument('--cut_depth', dest='cut_depth',
+                        help='the depth of the cut in the model',
+                        default=0, type=int)
+    parser.add_argument('--cut_points', dest='cut_points',
+                        help='the point in which the model is cut',
+                        default=None, type=str)
     parser.add_argument('--use_svd', dest='use_svd',
                         help='use svd to initialize',
                         action='store_true')
@@ -102,14 +110,14 @@ def parse_args():
                         help="share basis filters", 
                         action='store_true')
     parser.add_argument('--loss', dest='loss',
-                        default='Sigmoid', type=str)
-    # models related to branching
+                        default=None, type=str)
+    # arguments related to branching
     parser.add_argument('--num_rounds', dest='num_rounds',
                         help='number of branching rounds in training',
                         default=1, type=int)
-    # parser.add_argument('--snapshot_file', dest='snapshot_file',
-    #                     help='the file containing snapshot information used to resume training', 
-    #                     default=None, type=str)
+    parser.add_argument('--aff_type', dest='aff_type',
+                        help='the method used to compute similarity',
+                        default='linear_basis_mean', type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -160,67 +168,45 @@ if __name__ == '__main__':
 
     # parse class_id if necessary
     if args.cls_id is not None:
-        # class_id = [int(id) for id in args.cls_id.split(',')]
         class_id = json.loads(args.cls_id)
     else:
         class_id = range(imdb['train'].num_classes)
-    old_class_id = class_id
 
-    # if a solver file is already specified, the training should have only one round. 
-    assert (args.solver is None) or (args.num_rounds==1),\
-        'Preloaded solver does not support branching'.format()
+    # parse cut_points if necessary
+    cut_points = None
+    if args.cut_points is not None:
+        cut_points = json.loads(args.cut_points)
 
-    solver_file = args.solver
-    cur_pretrained_model = args.pretrained_model
-    for train_round in xrange(args.num_rounds):
-        # if solver file is not specified, dynamically generate one based on options.
-        param_mapping = None
-        if args.solver is None:
-            # io object
-            io = MultiLabelIO(class_list=class_id, loss_layer=args.loss)
-            # paths, model names and snapshot prefix should clearly specify the rounds
-            path = osp.join(output_dir, 'prototxt', 'round_{}'.format(train_round))
-            model_name = args.model + '_' + 'round_{}'.format(train_round)
-            snapshot_prefix = args.snapshot_prefix + '_' + 'round_{}'.format(train_round)
-            # in the first round, we need to create new model
-            # in the following rounds, we need to insert branches. 
-            if train_round == 0:
-                print 'Round {}: Model initialization...'.format(train_round)
-                model, param_mapping = get_models(args.model, io=io, model_name=model_name, 
-                    path=path, first_low_rank=args.first_low_rank, use_mdc=args.use_mdc,
-                    share_basis=args.share_basis)
-            else:
-                br_idx, br_split = branch_linear_combination(cur_pretrained_model, model)
-                # # Make a decision to create k branches at a (layer, col)
-                # br_idx, br_split = branch_at_round(cur_pretrained_model, model, 
-                #     layer=model.num_layers-train_round+1, col=0, k=args-num_rounds-train_round+1)
-                # Update path and model names
-                model.set_path(path)
-                model.set_name(model_name)
-                # idx is a tuple, (layer_idx, col_idx)
-                # split is a list of lists, each list is the index into the tops (branches)
-                # insert branch. 
-                param_mapping = model.insert_branch(br_idx, br_split)
-                class_id = [old_class_id[t] for t in model.list_tasks()]
-                print 'Round {}: Creating new branches at layer {} branch {}...'.\
-                    format(train_round, *br_idx)
-                for i in xrange(len(br_split)):
-                    print 'Split {}: {}'.format(i, br_split[i])
-                for k,v in param_mapping.iteritems():
-                    print 'Round {}: Net2Net initialization: {} <- {}'.format(train_round, k[0], v)
-            # generate solver
-            solver = SolverParameter(path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
-                gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
-                regularization_type=args.regularization_type, clip_gradients=args.clip_gradients, snapshot_prefix=snapshot_prefix)
-            # save files
-            model.to_proto(deploy=False)
-            model.to_proto(deploy=True)
-            solver.to_proto()
-            solver_file = solver.solver_file()
+    # load pretrained parameters
+    pretrained_params = PretrainedParameter(pretrained_model=args.pretrained_model, use_svd=args.use_svd)
+    # if solver file is not specified, dynamically generate one based on options. 
+    if args.solver is None:
+        # io object
+        io = get_io(args.task_name, class_list=class_id, loss_layer=args.loss)
+        # create solver and model, update parameters. 
+        model, param_mapping, new_branches = get_models(args.model, io=io, model_name=args.model, 
+            last_low_rank=args.last_low_rank, use_mdc=args.use_mdc,
+            share_basis=args.share_basis, cut_depth=args.cut_depth, cut_points=cut_points)
+        pretrained_params.set_param_mapping(param_mapping)
+        pretrained_params.set_param_rand(new_branches)
+        # the orders in class list might shift if a cut is specified. 
+        class_id = [class_id[t] for t in model.list_tasks()]
+        # get model parameters
+        model_params = ModelParameter(model=model, aff_type=args.aff_type, num_rounds=args.num_rounds)
+        # save solver parameters
+        solver_path = osp.join(output_dir, 'prototxt')
+        solver_params = SolverParameter(path=solver_path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
+            gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
+            regularization_type=args.regularization_type, clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
+    else:
+        # get model parameters
+        model_params = ModelParameter()
+        # get solver parameters
+        solver_params = SolverParameter(solver_prototxt=args.solver)
 
-            print 'Model files saved at {}'.format(model.path)
 
-        print 'Round {}: Current class list: {}'.format(train_round, class_id)
-        sw = MultiLabelSW(imdb, solver_file, output_dir, cur_pretrained_model, param_mapping, args.use_svd, class_id)
-        sw.train_model(args.max_iters, args.base_iter)
-        cur_pretrained_model = sw.snapshot_name(args.base_iter)
+    print "Class list: {}".format(class_id)
+    sw = get_sw(args.task_name, imdb=imdb, output_dir=output_dir, 
+        solver_params=solver_params, pretrained_params=pretrained_params, 
+        model_params=model_params, cls_id=class_id)
+    sw.train_model(args.max_iters, args.base_iter)

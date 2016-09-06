@@ -9,6 +9,7 @@ Factory method for easily getting imdbs by name.
 # import datasets
 from celeba import CelebA
 from celeba_plus_webcam_cls import CelebA_Plus_Webcam_Cls
+from IBMattributes import IBMAttributes
 
 # import utilities
 import sys
@@ -34,6 +35,12 @@ for split in ['train', 'val']:
     name = 'celeba_plus_webcam_cls_{}'.format(split)
     __sets[name] = (lambda split=split:
                     CelebA_Plus_Webcam_Cls(split))
+
+# setup IBMattributes dataset
+for split in ['train', 'val']:
+    name = 'IBMattributes_{}'.format(split)
+    __sets[name] = (lambda split=split:
+                    IBMAttributes(split))
 
 def get_imdb(name):
     """ Get an imdb (image database) by name."""
