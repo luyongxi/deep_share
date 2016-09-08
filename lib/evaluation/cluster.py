@@ -8,7 +8,7 @@ from utils.timer import Timer
 from utils.config import cfg
 from sklearn.cluster import SpectralClustering
 
-def Binary2Corr(label):
+def _error2Aff(label):
     """ Given an binary label matrix, convert it to correlation matrix.
         label: N by C matrix in {0,1}. 
         cm: C by C matrix in [-1,1].
@@ -18,9 +18,10 @@ def Binary2Corr(label):
     cm = np.dot(label.transpose(), label)
     N = label.shape[0]
     cm = cm/N
-    return cm
 
-def MultiLabel_CM(net, imdb, postfix='', cls_idx=None, type='ecm'):
+    return (cm+1.0)/2.0
+
+def MultiLabel_ECM_cluster(net, k, imdb, cls_idx=None, reverse=False):
     """ Get Multi-label Label Correlation Matrix (LCM) """
     # class list is an ordered list of class index (onto the given dataset)
     if cls_idx is None:
@@ -29,11 +30,11 @@ def MultiLabel_CM(net, imdb, postfix='', cls_idx=None, type='ecm'):
     num_images = imdb.num_images
 
     # iterate over images, collect error vectors
-    label = np.zeros((num_images, num_classes)) # in {0,1} format
+    err = np.zeros((num_images, num_classes)) # in {0,1} format
     timer = Timer()
     for i in xrange(num_images):
         # prepare blobs 
-        label_name = "score"+postfix
+        label_name = "prob"
         fn = imdb.image_path_at(i)
         data = im_list_to_blob([fn], cfg.PIXEL_MEANS, cfg.SCALE)
         net.blobs['data'].reshape(*(data.shape))
@@ -44,20 +45,18 @@ def MultiLabel_CM(net, imdb, postfix='', cls_idx=None, type='ecm'):
         # get results
         scores = blobs_out[label_name]
         # evaluate the scores
-        if type == 'ecm':
-            label[i,:] = imdb.evaluate(scores, np.array([i]), cls_idx)
-        elif type == 'lcm':
-            label[i,:] = (scores>0.5).astype(np.float32, copy=False)
+        err[i,:] = imdb.evaluate(scores, np.array([i]), cls_idx)
         # print infos
         print 'Image {}/{} ::: speed: {:.3f}s /iter'.format(i, num_images, timer.average_time)
 
     # get error correlation matrix
-    print 'Computing {}...'.format(type)
-    cm = Binary2Corr(label)
-    
-    return cm
+    aff = _error2Aff(err)
+    if reverse:
+        aff = 1.0-aff
+    # perform clustering
+    return _clusterAffinity(aff, k, imdb, cls_idx)
 
-def ClusterAffinity(aff, k, imdb, cls_idx):
+def _clusterAffinity(aff, k, imdb, cls_idx):
     """ Cluster error correlation matrix using spectral clustering into k cluster, 
         show the class labels in each cluster. 
     """
@@ -77,17 +76,7 @@ def ClusterAffinity(aff, k, imdb, cls_idx):
 
     return labels
 
-# TODO: implement a function that loads the linear combinations of a model
-
-# TODO: implement a function that computes similiarty based on this linear combination.
-
-# Example codes
-  # spectral = cluster.SpectralClustering(n_clusters=2,
-  #                                         eigen_solver='arpack',
-  #                                         affinity="nearest_neighbors")
-
 if __name__ == '__main__':
-    # TODO: first run some demo codes to ensure spectral clustering
-    # itself is working. 
+    # TODO: debug code if necessary
        
     pass

@@ -4,14 +4,8 @@
 
 """ Test clustering of tasks """
 
-# TODO: we should focus on clustering using the following two.
-# (1) Error correlation matrix, where groups of tasks are clustered closely when they have more correlations
-# (2) Error correlation matrix, where groups of tasks are clustered closely when they have less correlations
-
-# Let's name these two configurations ecm_pos, ecm_neg, respectively. 
-
 import _init_paths
-from evaluation.cluster import MultiLabel_CM, ClusterAffinity
+from evaluation.cluster import MultiLabel_ECM_cluster
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
 import caffe
@@ -20,11 +14,13 @@ import pprint
 import numpy as np
 import sys, os
 
+import json
+
 def parse_args():
     """
     Parse input arguments
     """
-    parser = argparse.ArgumentParser(description="Test clustering.")
+    parser = argparse.ArgumentParser(description="Find clusters.")
     parser.add_argument('--gpu', dest='gpu_id',
                         help='GPU device id to use [None]',
                         default=None, type=int)
@@ -91,21 +87,17 @@ if __name__ == '__main__':
     imdb = get_imdb(args.imdb_name)
     print 'Loaded dataset `{:s}` for testing'.format(imdb.name)
 
-    # parse class_id if necessary
-    if args.cls_id is not None:
-        cls_idx = [int(id) for id in args.cls_id.split(',')]
-    else:
-        cls_idx = None
+    # parse class_id
+    classid_name = os.path.splitext(args.weights)[0] + '.clsid'
+    with open(classid_name, 'rb') as f:
+        class_id = json.loads(f.read())
 
-    # Need to rethink!
+    if args.method == 'ecm':
+        labels=MultiLabel_ECM_cluster(net, k=args.n_cluster, imdb=imdb, 
+            cls_idx=class_id, reverse=False)
+    elif args.method == 'ecm_reverse':
+        labels=MultiLabel_ECM_cluster(net, k=args.n_cluster, imdb=imdb, 
+            cls_idx=class_id, reverse=True)
 
-    # if args.method == 'ecm':
-    #     # error correlation matrix
-    #     ecm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='ecm')
-    #     # ClusterAffinity(ecm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
-    #     ClusterAffinity(abs(ecm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)        
-    # elif args.method == 'lcm':
-    #     # label correlation matrix
-    #     lcm = MultiLabel_CM(net, imdb=imdb, cls_idx=cls_idx, type='lcm')
-    #     # ClusterAffinity(lcm+1.0, k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
-    #     ClusterAffinity(abs(lcm), k=args.n_cluster, cls_idx=cls_idx, imdb=imdb)
+    for i in xrange(args.n_cluster):
+        print 'Cluster {} is: {}'.format(i, [class_id[j] for j in np.where(labels==i)[0]])

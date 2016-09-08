@@ -19,10 +19,10 @@ time ./tools/save_softlabels.py --gpu 0 \
 time ./tools/train_cls.py --gpu 0 \
     --traindb IBMattributes_train \
     --valdb IBMattributes_val \
-    --iters 10000 \
+    --iters 20000 \
     --base_lr 0.001 \
     --clip_gradients 20 \
-    --stepsize 8000 \
+    --stepsize 16000 \
     --model low-vgg-16 \
     --loss Sigmoid \
     --snapshot_prefix low-vgg-16-ibmattributes-$1 \
@@ -33,5 +33,5 @@ time ./tools/train_cls.py --gpu 0 \
 
 time ./tools/test_cls.py --gpu 0 \
     --model output/low-vgg-16-ibmattributes-$1/IBMattributes_train/prototxt/test.prototxt \
-    --weights output/low-vgg-16-ibmattributes-$1/IBMattributes_train/low-vgg-16-ibmattributes-$1_iter_10000.caffemodel \
+    --weights output/low-vgg-16-ibmattributes-$1/IBMattributes_train/low-vgg-16-ibmattributes-$1_iter_20000.caffemodel \
     --imdb IBMattributes_val

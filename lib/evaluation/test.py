@@ -48,12 +48,12 @@ def classification_test(net, imdb, cls_idx):
 
     # get error for each class
     class_names = imdb.classes
-    mean_err = err.mean(axis=0)
+    mean_err = np.nanmean(err, axis=0)
     for i in xrange(len(cls_idx)):
         print '!!! Error rate for class {} is: {}'.\
             format(class_names[cls_idx[i]], mean_err[i])
 
-    print '!!! The average error rate is {}.'.format(mean_err.mean())    
+    print '!!! The average error rate is {}.'.format(mean_err.mean())
     print '---------------------------------------------------------------'
 
 def save_softlabels(net, image_list, score_file, labeler):

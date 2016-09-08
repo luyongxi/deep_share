@@ -8,14 +8,14 @@ set -e
 
 export PYTHONUNBUFFERED="True"
 
-LOG="../logs/test_cluster[k=$num]_$method.txt.`date +'%Y-%m-%d_%H-%M-%S'`"
+LOG="../logs/test_cluster_${num}_${method}.txt.`date +'%Y-%m-%d_%H-%M-%S'`"
 exec &> >(tee -a "$LOG")
 echo Logging output to "$LOG"
 
 cd ../..
 time ./tools/test_cluster.py --gpu 0 \
-    --model models/joint_entropy_loss/test.prototxt \
-    --weights output/joint/vgg16_att_cls_square_loss_iter_80000.caffemodel \
+    --model /dccstor/luyo1/multi-task-output/narrow-low-vgg-16-binary-0/celeba_train/prototxt/test.prototxt \
+    --weights /dccstor/luyo1/multi-task-output/narrow-low-vgg-16-binary-0/celeba_train/celeba_binary-0_iter_20000.caffemodel \
     --imdb celeba_val \
     --n_cluster $num \
     --method $method

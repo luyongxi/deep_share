@@ -7,6 +7,7 @@ import os
 import os.path as osp
 import cPickle
 import yaml
+from layers.multilabel_err import compute_mle
 
 """Class to manipulate IBMattributes dataset """
 
@@ -18,7 +19,7 @@ class IBMAttributes(Imdb):
         Imdb.__init__(self, name)
         
         # attribute classes    
-        self._classes = ['Bald', 'Hat', 'Hair', 'Blackhair', 'Blondehair', 'Facialhair', 'Asian','Black','White']
+        self._classes = ['Bald', 'Hat', 'Hair', 'Blackhair', 'Blondehair', 'Facialhair', 'Asian','Black', 'White', 'NoGlasses', 'SunGlasses', 'VisionGlasses']
         self._split = split
         
         # load image paths and annotations
@@ -41,7 +42,11 @@ class IBMAttributes(Imdb):
         """
         cls_name = self._classes[cls_id]
         dest_classes = [item[1] for item in self._config]
-        item_idx = dest_classes.index(cls_name)
+        label_type = [item[-1] for item in self._config]
+        # only "pos" labels are used, under the assumption that negative labels
+        # can only be providedd through outputs from the same caffemodel
+        item_idx = [i for i in xrange(len(self._config)) if 
+            (dest_classes[i]==cls_name) and (label_type[i]=='pos')][0]
         labler = self._config[item_idx][2:5]
         labler[0] = osp.join(self.data_path, labler[0])
         src_name = self._config[item_idx][0]
@@ -51,14 +56,14 @@ class IBMAttributes(Imdb):
     def _load_config(self):
         """ Load config file that tells us where pre-trained models for soft labels are 
             Config file format:
-            [src_name, dest_name, caffemodel, score_name, score_idx, negative]
+            [src_name, dest_name, caffemodel, score_name, score_idx, label_type]
             ---------------------------------------------------------------------------------------------------
             src_name: the name of a particular visual concept in the source dataset, used to load ground truth
             dest_name: the name of the particular visual concept in the destination dataset
             caffemodel: the caffemodel file associated with this class. If not provide specify "null"
             score_name: the name of the score layer in the caffemodel
             score_idx: the index of the particular score in the score layer in the caffemodel
-            negative: If "true", a score True in the src_name indicates a negative score in the dest_name
+            label_type: If "pos", used as positive label; if "neg", used as negative labels
         """
         self._config = []
         file = os.path.join(self.data_path, 'config.txt')
@@ -83,7 +88,7 @@ class IBMAttributes(Imdb):
                 # check if there is missing labels. 
                 if np.any([len(self.list_incomplete(idx))>0 for idx in xrange(self.num_classes)]):
                     self._gtdb['attr'] = np.maximum(self._gtdb['attr'], 
-                        self._do_load_soft_labels(split))
+                        self._do_load_soft_labels())
                 return
 
         # We should first load gt_labels, and then attempt to load soft labels
@@ -92,7 +97,7 @@ class IBMAttributes(Imdb):
         # load ground truth labels
         self._gtdb = {'attr': self._do_load_gt_labels()}
         self._gtdb['attr'] = np.maximum(self._gtdb['attr'], 
-            self._do_load_soft_labels(split))
+            self._do_load_soft_labels())
 
         dbcache = {'image_list': self.image_list, 'gtdb': self.gtdb}
         # save to cache         
@@ -110,8 +115,10 @@ class IBMAttributes(Imdb):
 
         image_list = []
         # the first entries in the sub-lists of self._config are src class names
-        for src_idx in xrange(len(self._config)):
-            src_folder = osp.join(base_folder, self._config[src_idx][0])
+        src_classes = set([item[0] for item in self._config])
+        # Find a unique set of names in the src_names, and load all these images. 
+        for folder_name in src_classes:
+            src_folder = osp.join(base_folder, folder_name)
             image_list.extend([osp.join(src_folder, fn) for fn in os.listdir(src_folder)])
 
         return image_list
@@ -124,22 +131,29 @@ class IBMAttributes(Imdb):
         print 'loading ground truth labels...'
         src_classes = [item[0] for item in self._config]
         dest_classes = [item[1] for item in self._config]
-        neg = [item[-1] for item in self._config]
+        label_type = [item[-1] for item in self._config]
         # by default, all the labels are marked "-1", meaning the attribute label is unknown. 
         labels = -1.0 * np.ones((self.num_images, self.num_classes), dtype=np.float32)
         for i in xrange(self.num_images):
-            # conversion: first match the folder name to a src_class, then match that src_class to a 
-            src_label = src_classes.index(osp.basename(osp.dirname(self.image_path_at(i))))
-            labels[i, self.classes.index(dest_classes[src_label])] = 0 if neg[src_label] else 1
+            # conversion: first match the folder name to a src_class, then match that src_class to a dest_class
+            folder_name = osp.basename(osp.dirname(self.image_path_at(i)))
+            src_idx = [j for j in xrange(len(src_classes)) if src_classes[j]==folder_name]
+
+            for s in src_idx:
+                cls_idx = self.classes.index(dest_classes[s])
+                if label_type[s] == 'neg':
+                    labels[i, cls_idx] = 0
+                elif label_type[s] == 'pos':
+                    labels[i, cls_idx] = 1
 
         return labels
 
-    def _do_load_soft_labels(self, split):
+    def _do_load_soft_labels(self):
         """ load soft labels from the dataset """
         # src_classes = [item[0] for item in self._config]
         print 'loading soft labels...'
         dest_classes = [item[1] for item in self._config]
-        neg = [item[-1] for item in self._config]
+        label_type = [item[-1] for item in self._config]
         # by default, all the labels are marked "-1", meaning the attribute label is unknown. 
         labels = -1.0 * np.ones((self.num_images, self.num_classes), dtype=np.float32)
 
@@ -150,9 +164,12 @@ class IBMAttributes(Imdb):
                 with open(score_file_name, 'rb') as fid:
                     soft_labels_c = cPickle.load(fid)
                     match_id = dest_classes.index(self.classes[c])
-                    print '{} soft label for class {} loaded from {}'.\
-                        format('neg' if neg[match_id] else 'pos', self.classes[c], score_file_name)
-                    labels[img_idx_c, c] = 1.0-soft_labels_c if neg[match_id] else soft_labels_c
+                    print 'soft label for class {} loaded from {}'.\
+                        format(self.classes[c], score_file_name)
+                    # soft labels are always from positive labels, because the 
+                    # labeler are always from the positive label class
+                    # (the score for negative class can be achieved by 1-y)
+                    labels[img_idx_c, c] = soft_labels_c
 
         return labels
 

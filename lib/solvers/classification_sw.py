@@ -309,14 +309,14 @@ class MultiLabelSW(ClassificationSW):
         print 'Iteration {}: training error = {}'.format(cur_iter, err_train.mean())
         print 'Iteration {}: training loss = {}'.format(cur_iter, loss_train)
 
-        err_val = np.zeros((1, self._num_classes))            
+        err_val = np.zeros((0, self._num_classes))
         if cur_iter % cfg.TRAIN.VAL_FREQ == 0:
             # perform validation    
             for _ in xrange(cfg.TRAIN.VAL_SIZE):
                 self._solver.test_nets[0].forward()
-                err_val += self._solver.test_nets[0].blobs['error'].data
-            err_val /= cfg.TRAIN.VAL_SIZE
-            print 'Iteration {}: validation error = {}'.format(cur_iter, err_val.mean())
+                err_val = np.vstack((err_val, self._solver.test_nets[0].blobs['error'].data))
+            err_val = np.nanmean(err_val, axis=0)
+            print 'Iteration {}: validation error = {}'.format(cur_iter, np.nanmean(err_val))
 
 class SingleLabelSW(ClassificationSW):
     """ Wrapper around Caffe's solver """
@@ -352,11 +352,11 @@ class SingleLabelSW(ClassificationSW):
         print 'Iteration {}: training accuracy = {}'.format(cur_iter, acc_train.ravel())
         print 'Iteration {}: training loss = {}'.format(cur_iter, loss_train)
 
-        acc_val = np.zeros((1,))            
+        # acc_val = CircularQueue(cfg.TRAIN.VAL_SIZE)
+        acc_val = np.zeros((0, ))
         if cur_iter % cfg.TRAIN.VAL_FREQ == 0:
             # perform validation    
             for _ in xrange(cfg.TRAIN.VAL_SIZE):
                 self._solver.test_nets[0].forward()
-                acc_val += self._solver.test_nets[0].blobs['acc'].data
-            acc_val /= cfg.TRAIN.VAL_SIZE
-            print 'Iteration {}: validation accuracy = {}'.format(cur_iter, acc_val.ravel())
+                acc_val = np.vstack((acc_val, self._solver.test_nets[0].blobs['acc'].data))
+            print 'Iteration {}: validation accuracy = {}'.format(cur_iter, np.nanmean(acc_val))
