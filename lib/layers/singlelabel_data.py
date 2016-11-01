@@ -18,10 +18,13 @@ class SingleLabelData(ClassificationData):
             'label': 1}
 
         # data blob: holds a batch of N images, each with 3 channels
-        top[0].reshape(cfg.TRAIN.IMS_PER_BATCH, 3, cfg.SCALE, cfg.SCALE)
-
         # label blob: holds a batch of labels
-        top[1].reshape(cfg.TRAIN.IMS_PER_BATCH)
+        if self._stage == 'TRAIN':
+            top[0].reshape(cfg.TRAIN.IMS_PER_BATCH, 3, cfg.SCALE, cfg.SCALE)
+            top[1].reshape(cfg.TRAIN.IMS_PER_BATCH)
+        elif self._stage == 'VAL':
+            top[0].reshape(1, 3, cfg.SCALE, cfg.SCALE)
+            top[1].reshape(1)
 
     def _label_gt_from_inds(self, inds):
         """ Get label gt from inds """

@@ -15,10 +15,5 @@ class CircularQueue(object):
     def append(self, value):
         self._holder.append(value)
 
-    def max(self):
-        temp = np.stack(self._holder, axis=-1)
-        return temp.max(axis=-1)
-
-    def mean(self):
-        temp = np.stack(self._holder, axis=-1)
-        return temp.mean(axis=-1)
+    def toMatrix(self):
+        return np.concatenate(self._holder, axis=0)

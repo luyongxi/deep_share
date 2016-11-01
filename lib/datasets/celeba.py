@@ -5,7 +5,7 @@ from imdb import Imdb
 import numpy as np
 import os
 import cPickle
-from layers.multilabel_err import compute_mle
+from utils.error import compute_mle
 
 """
 Class to manipulate CelebA dataset

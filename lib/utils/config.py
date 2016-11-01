@@ -19,6 +19,8 @@ __C = edict()
 # 	from utils import cfg
 cfg = __C
 
+# TODO: the controls here should be less significant to the algorithm. 
+
 ## ------------------------------------------------------------------------------
 #  Options for training
 ## ------------------------------------------------------------------------------
@@ -29,21 +31,22 @@ __C.TRAIN.SNAPSHOT_ITERS = 1000
 
 # Perform validation or not
 __C.TRAIN.USE_VAL = True
-
-# Sample size for validation (times mini-batch size)
+# validation size
 __C.TRAIN.VAL_SIZE = 100
-
-# Sample frequency for validation (number of training iterations)
-__C.TRAIN.VAL_FREQ = 400
+# Sample frequency for validation
+__C.TRAIN.VAL_FREQ = 500
 
 # Frequency to display timer
-__C.TRAIN.TIMER_FREQ = 400
+__C.TRAIN.TIMER_FREQ = 500
 
-# Frequency to display clustering
-__C.TRAIN.CLUSTER_FREQ = 50
+# Frequency to display training
+__C.TRAIN.TRAIN_FREQ = 20
 
-# Queue length to accumulate supervision information
-__C.TRAIN.SUP_LENGTH = 50
+# Frequency to save error correlation
+__C.TRAIN.CORR_FREQ = 100
+
+# Cluster repetition
+__C.TRAIN.CLUSTER_REP = 5
 
 # Infix to yield te path
 __C.TRAIN.SNAPSHOT_INFIX = ''
@@ -52,7 +55,7 @@ __C.TRAIN.SNAPSHOT_INFIX = ''
 __C.TRAIN.IMS_PER_BATCH = 32
 
 # Random noies factor for branches
-__C.TRAIN.NOISE_FACTOR = 0.0
+__C.TRAIN.NOISE_FACTOR = 0
 
 
 ## ------------------------------------------------------------------------------

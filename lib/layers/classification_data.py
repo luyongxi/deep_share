@@ -37,7 +37,7 @@ class ClassificationData(caffe.Layer):
         """ Get a random batch of samples for validation
             Packed into a blob
         """
-        num_samples = min(self._imdb.num_images, cfg.TRAIN.IMS_PER_BATCH)
+        num_samples = min(self._imdb.num_images, 1)
         db_inds = np.random.choice(self._imdb.num_images, size=num_samples, replace=False)
         blobs = self._get_blobs_from_inds(db_inds)
         return blobs

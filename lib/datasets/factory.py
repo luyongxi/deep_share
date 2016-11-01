@@ -6,17 +6,37 @@
 Factory method for easily getting imdbs by name.
 """
 
+# import utilities
+import sys
+import os.path as osp
+import numpy.random as npr
+
+if __name__ == '__main__':
+    def add_path(path):
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+    this_dir = osp.dirname(__file__)
+    # Add utils to PYTHONPATH
+    lib_path = osp.join(this_dir, '..', '..', 'lib')
+    add_path(lib_path)
+    dataset_path = osp.join(this_dir)
+    add_path(dataset_path)
+
 # import datasets
 from celeba import CelebA
 from celeba_plus_webcam_cls import CelebA_Plus_Webcam_Cls
 from IBMattributes import IBMAttributes
-
-# import utilities
-import sys
-import numpy.random as npr
+from deepfashion import DeepFashion
 
 # dataset functor
 __sets = {}
+
+# setup DeepFashion dataset
+for split in ['train', 'val', 'test', 'trainval']:
+    name = 'deepfashion_{}'.format(split)
+    __sets[name] = (lambda split=split:
+                    DeepFashion(split))
 
 # setup CelebA dataset
 for split in ['train', 'val', 'test', 'trainval']:
@@ -72,4 +92,4 @@ if __name__ == '__main__':
     idx = npr.choice(imdb.num_images, size=5, replace=False)
     print 'Please check against the dataset to see if the following printed information is correct...'
     for i in idx:
-        imdb.print_info(i)	
+        imdb.print_info(i)

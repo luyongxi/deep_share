@@ -18,15 +18,11 @@ def get_init_params(std):
     bias_filler = {'type': 'constant', 'value': 0}
     return weight_filler, bias_filler
 
-def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0.01, use_mdc=False):
+def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0.01):
     """Add a convolutional layer """
     # names of the parameters
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
-    if use_mdc:
-        param[0]['local_decay_mult'] = lr_factor
-        param[0]['local_decay_type'] = "MDC"
-        param[0]['local_beta'] = 10
     # weight filler
     weight_filler, bias_filler = get_init_params(std)
     # set up the layer
@@ -34,14 +30,10 @@ def add_conv(net, bottom, name, param_name, k, ks, pad, nout, lr_factor=1, std=0
         stride=ks, pad=pad, num_output=nout, bias_term=True, weight_filler=weight_filler, 
         bias_filler=bias_filler))
 
-def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01, use_mdc=False):
+def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01):
     """Add a fully-connected layer """
     param = [{'name': param_name['weights'], 'lr_mult': lr_factor, 'decay_mult': 1}, 
         {'name': param_name['bias'], 'lr_mult': 2*lr_factor, 'decay_mult': 0}]
-    if use_mdc:
-        param[0]['local_decay_mult'] = lr_factor
-        param[0]['local_decay_type'] = "MDC"
-        param[0]['local_beta'] = 10
     # weight filler
     weight_filler, bias_filler = get_init_params(std)
     # set up the layer
@@ -52,6 +44,19 @@ def add_fc(net, bottom, name, param_name, nout, lr_factor=1, std=0.01, use_mdc=F
 def add_relu(net, bottom, name, in_place=True):
     """Add ReLu activation """
     net[name] = L.ReLU(bottom, in_place=in_place)
+
+def add_bn(net, bottom, name, in_place=True, ma_fraction=0.95):
+    """ Add batch normalization layer """
+    batch_norm_param = dict(moving_average_fraction=ma_fraction)
+    net[name] = L.BatchNorm(bottom, in_place=in_place, 
+        batch_norm_param=batch_norm_param)
+
+def add_scale(net, bottom, name, in_place=True, lr_factor=1):
+    """ Add a scale layer """
+    param = [{'lr_mult': lr_factor, 'decay_mult': 1}, 
+        {'lr_mult': 2*lr_factor, 'decay_mult': 0}]
+    net[name] = L.Scale(bottom, in_place=in_place, param=param,  
+        scale_param=dict(bias_term=True))
 
 def add_maxpool(net, bottom, name, k, ks, pad):
     """Add max pooling layer """

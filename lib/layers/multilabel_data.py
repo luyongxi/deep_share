@@ -19,10 +19,13 @@ class MultiLabelData(ClassificationData):
             'label': 1}
 
         # data blob: holds a batch of N images, each with 3 channels
-        top[0].reshape(cfg.TRAIN.IMS_PER_BATCH, 3, cfg.SCALE, cfg.SCALE)
-
         # label blob: holds a batch of N labels, each with _num_classes labels
-        top[1].reshape(cfg.TRAIN.IMS_PER_BATCH, self._num_classes)
+        if self._stage == 'TRAIN':
+            top[0].reshape(cfg.TRAIN.IMS_PER_BATCH, 3, cfg.SCALE, cfg.SCALE)
+            top[1].reshape(cfg.TRAIN.IMS_PER_BATCH, self._num_classes)
+        elif self._stage == 'VAL':
+            top[0].reshape(1, 3, cfg.SCALE, cfg.SCALE)
+            top[1].reshape(1, self._num_classes)
 
     def _label_gt_from_inds(self, inds):
         """ Get label gt from inds """

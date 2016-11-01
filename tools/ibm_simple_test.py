@@ -9,7 +9,7 @@
 import _init_paths
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from utils.blob import im_list_to_blob
-from layers.multilabel_err import compute_mle
+from utils.error import compute_mle
 import argparse
 import pprint
 import caffe

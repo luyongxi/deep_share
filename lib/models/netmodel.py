@@ -109,7 +109,7 @@ class NetBlob(object):
 class NetModel(object):
     """ A model for the neural network """
 
-    def __init__(self, model_name, io, num_layers):
+    def __init__(self, model_name, io, num_layers, col_config=None):
         """ Initialize a model for neural network
             Inputs:
                 model_name: name of the model
@@ -121,14 +121,23 @@ class NetModel(object):
                     add_output(net, bottom_dict, deploy): add output layers
                     col_name_at_j(j): column name at j
                     branch_name_at_j_k(j, k): branch name
-                    num_layers: number of intermediate layers 
-                            (not counting inputs and task specific 
-                            output layers)
+                num_layers: number of intermediate layers 
+                        (not counting inputs and task specific 
+                        output layers)
+                col_config: A dictionary with two attributes
+                    max_columns: maximum number of columns at each layer
+                    col_cost: cost of each creating columns at each layers
         """
         self._model_name = model_name
         self._io = io
         self._num_layers = num_layers
         self._init_graph(num_layers, self.num_tasks)
+        if col_config is None:
+            self._max_columns = [1 for _ in xrange(self.num_layers+1)]
+            self._col_costs = [0 for _ in xrange(self.num_layers+1)]
+        else:
+            self._max_columns = col_config['max_columns']
+            self._col_costs = col_config['col_costs']
 
     def _init_graph(self, num_layers, num_tasks):
         """ Initilize the connection graph of blobs """
@@ -156,6 +165,18 @@ class NetModel(object):
 
         return task_list
 
+    def check_column_limits(self, idx):
+        """ Check if the insertion will cause more columns 
+            than desired. 
+        """
+        for i in xrange(self.num_layers):
+            num_col_i = self.num_cols_at(i)
+            max_col_i = self.max_cols_at(i)
+            layer_col_list = [col for col in idx if col[0]==i]
+            assert len(layer_col_list)+num_col_i<=max_col_i, 'Could not insert {} '\
+                'branches to layer {} with {} columns: max_col == {}'.\
+                format(len(layer_col_list), i, num_col_i, max_col_i)
+
     def insert_multiple_branches(self, idx, split):
         """ Create more than one branches 
             A wrapper that uses insert_branch procedure to insert multiple 
@@ -163,34 +184,39 @@ class NetModel(object):
             and col index to avoid conflicting names during the insertion
             procedure
         """
+        self.check_column_limits(idx)
+
         mappings = []
         new_branches = []
         sort_idx = [i[0] for i in sorted(enumerate(idx), key=lambda x:x[1])]
-        for i in xrange(sort_idx):
+        for i in sort_idx:
             map_i, br_i = self.insert_branch(idx[i], split[i])
             mappings.append(map_i)
-            new_branches.append(br_i)
+            new_branches.extend(br_i)
 
-        return reduce_param_mapping, new_branches
+        return reduce_param_mapping(mappings), list(set(new_branches))
 
     def insert_branch(self, idx, split):
         """ 
         Create new branches at a particular column at a particular layer
             Inputs:
                 idx: a tuple (layer_idx, col_idx), to insert the branch.
-                split: a list with two sub-lists, each are indexes into a set of tops (branches)
+                split: a list with multiple sub-lists, each are indexes into a set of tops (branches)
             Outputs:
                 param_mapping: mapping from old paramter names to new parameter names
         """
+        self.check_column_limits([idx])
         mappings = []
+        new_branches = []
         cur_split = split
         cur_idx = idx
         while len(cur_split)>1:
             # create a new branch
             left = cur_split[0]
             right = [x for i in xrange(1, len(cur_split)) for x in cur_split[i]]
-            new_param_mapping, new_branches = self.insert_binary_branch(cur_idx, [left, right])
+            new_param_mapping, new_br = self.insert_binary_branch(cur_idx, [left, right])
             mappings.append(new_param_mapping)
+            new_branches.extend(new_br)
             # update indexing to be used in the next round
             cumsum = 0
             temp = []
@@ -215,7 +241,7 @@ class NetModel(object):
         # insert a new branch, keep track of the parameters.
         bottoms = self._net_graph[idx[0]-1]
         bottom_idx = [i for i in xrange(len(bottoms)) if idx[1] in bottoms[i].top_idx][0]  # a singleton
-        branch_idx = bottoms[i].top_idx.index(idx[1])
+        branch_idx = bottoms[bottom_idx].top_idx.index(idx[1])
         # create new blobs (columns) at the current layer
         # save original blob
         orig_blob = self._net_graph[idx[0]][idx[1]]
@@ -230,8 +256,8 @@ class NetModel(object):
         right_idx = len(self._net_graph[idx[0]])-1
         # add a new branch at the bottom layer
         b_blobs = bottoms[bottom_idx]
-        b_blobs.set_tasks(branch_idx=[branch_idx], tasks=[[t for i in left for t in [tasks[i]]]])
-        b_blobs.add_top(top_idx=[right_idx], tasks=[[t for i in right for t in [tasks[i]]]])
+        b_blobs.set_tasks(branch_idx=[branch_idx], tasks=[[t for i in left for t in tasks[i]]])
+        b_blobs.add_top(top_idx=[right_idx], tasks=[[t for i in right for t in tasks[i]]])
         # log changes
         changes = {}
         # layer i
@@ -246,15 +272,9 @@ class NetModel(object):
         # branches
         changes[(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)] = (idx[0]-1, bottom_idx, branch_idx)
 
-        # collect names for newly created branches
-        # new_branches = [self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, branch_idx), 
-        #                 self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)]
-
-        # TODO: perhaps, we should add noise to all linear combinations!
-        # new_branches = [self.col_name_at_i_j(idx[0]-1, bottom_idx)]
-        new_branches = []
-        for k in xrange(self.num_branch_at(idx[0]-1,bottom_idx)):
-            new_branches.append(self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, k))
+        # log the newly created branches. 
+        new_branches = [self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, branch_idx), 
+            self.branch_name_at_i_j_k(idx[0]-1, bottom_idx, b_blobs.num_tops()-1)]
 
         return self.to_param_mapping(changes), new_branches
 
@@ -304,6 +324,13 @@ class NetModel(object):
     def num_cols_at(self, i):
         """ Returns number of columns at layer i """
         return len(self._net_graph[i])
+
+    def max_cols_at(self, i):
+        return self._max_columns[i]
+
+    def col_cost_at(self, i):
+        """ provide the cost of adding a column at layer i """
+        return self._col_costs[i]
     
     @property
     def num_layers(self):
@@ -339,11 +366,27 @@ class NetModel(object):
         with open(fn, 'w') as f:
             f.write(name_str+self.proto_str(deploy=deploy))
 
+    def display_net(self, task_names=None):
+        """ Display the structure of the network """
+        # if task name is not provided for, initialize with default names
+        if task_names is None:
+            task_names = ['task{}'.format(i) for i in xrange(self.num_tasks)]
+
+        for i in xrange(1, self.num_layers+1):
+            print '--Layer {}'.format(i-1)
+            for j in xrange(self.num_cols_at(i)):
+                t_ij = [ind for t in self.tasks_at(i,j) for ind in t]
+                print '----Column {}: {}'.format(j, [task_names[t] for t in t_ij])
+
     def names_at_i_j(self, i, j):
         """ Return the name of the parameters at layer i, column j.
             This function depends on the exact network architecture
             It could return a string or a dict.
         """
+        return NotImplementedError
+
+    def layer_type(self, i):
+        """Return type of the layer """
         return NotImplementedError
 
     def col_name_at_i_j(self, i, j):

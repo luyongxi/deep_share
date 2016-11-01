@@ -58,9 +58,6 @@ def parse_args():
     parser.add_argument('--cls_id', dest='cls_id',
                         help='comma-separated list of classes to train',
                         default=None, type=str)
-    parser.add_argument('--base_iter', dest='base_iter',
-                        help='the base iteration to train',
-                        default=0 ,type=int)
     parser.add_argument('--infix', dest='infix',
                         help='additional infix to add',
                         default='',type=str)
@@ -103,21 +100,33 @@ def parse_args():
     parser.add_argument('--use_svd', dest='use_svd',
                         help='use svd to initialize',
                         action='store_true')
-    parser.add_argument('--use_mdc', dest='use_mdc',
-                        help='use mean deivation consistency to regularize',
-                        action='store_true')
     parser.add_argument('--share_basis', dest='share_basis',
                         help="share basis filters", 
+                        action='store_true')
+    parser.add_argument('--use_bn', dest='use_bn',
+                        help='use batch normalization in the networks',
                         action='store_true')
     parser.add_argument('--loss', dest='loss',
                         default=None, type=str)
     # arguments related to branching
-    parser.add_argument('--num_rounds', dest='num_rounds',
-                        help='number of branching rounds in training',
+    parser.add_argument('--max_rounds', dest='max_rounds',
+                        help='maximum number of branching rounds in training',
                         default=1, type=int)
-    parser.add_argument('--aff_type', dest='aff_type',
-                        help='the method used to compute similarity',
-                        default='linear_basis_mean', type=str)
+    parser.add_argument('--max_stall', dest='max_stall',
+                        help='maximum number of stalls before a new model is created',
+                        default=1000, type=int)
+    parser.add_argument('--split_thresh', dest='split_thresh',
+                        help='threshold that justifies splitting of two tasks',
+                        default=1.0, type=float)
+    parser.add_argument('--branch_depth', dest='branch_depth',
+                        help='the depth to cut per round',
+                        default=1, type=int)
+    parser.add_argument('--shrink_factor', dest='shrink_factor',
+                        help='the factor to shrink the number of columns in the network',
+                        default=2, type=int)    
+    parser.add_argument('--error_decay_factor', dest='error_decay_factor',
+                        help='decay factor used in performing weighted sum of training errors',
+                        default=0.99, type=float)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -184,15 +193,18 @@ if __name__ == '__main__':
         # io object
         io = get_io(args.task_name, class_list=class_id, loss_layer=args.loss)
         # create solver and model, update parameters. 
-        model, param_mapping, new_branches = get_models(args.model, io=io, model_name=args.model, 
-            last_low_rank=args.last_low_rank, use_mdc=args.use_mdc,
-            share_basis=args.share_basis, cut_depth=args.cut_depth, cut_points=cut_points)
+        model, param_mapping, new_branches, fit_params = get_models(args.model, io=io, model_name=args.model, 
+            last_low_rank=args.last_low_rank, share_basis=args.share_basis, cut_depth=args.cut_depth, 
+            cut_points=cut_points, use_bn=args.use_bn)
         pretrained_params.set_param_mapping(param_mapping)
         pretrained_params.set_param_rand(new_branches)
+        pretrained_params.set_fit_params(fit_params)
         # the orders in class list might shift if a cut is specified. 
         class_id = [class_id[t] for t in model.list_tasks()]
         # get model parameters
-        model_params = ModelParameter(model=model, aff_type=args.aff_type, num_rounds=args.num_rounds)
+        model_params = ModelParameter(model=model, max_rounds=args.max_rounds, max_stall=args.max_stall, 
+            split_thresh=args.split_thresh, error_decay_factor=args.error_decay_factor, 
+            branch_depth=args.branch_depth, shrink_factor=args.shrink_factor)
         # save solver parameters
         solver_path = osp.join(output_dir, 'prototxt')
         solver_params = SolverParameter(path=solver_path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
@@ -204,9 +216,8 @@ if __name__ == '__main__':
         # get solver parameters
         solver_params = SolverParameter(solver_prototxt=args.solver)
 
-
     print "Class list: {}".format(class_id)
     sw = get_sw(args.task_name, imdb=imdb, output_dir=output_dir, 
         solver_params=solver_params, pretrained_params=pretrained_params, 
         model_params=model_params, cls_id=class_id)
-    sw.train_model(args.max_iters, args.base_iter)
+    sw.train_model(args.max_iters)

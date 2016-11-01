@@ -15,9 +15,10 @@ def _error2Aff(label):
     """
      # covert to {-1, 1} format
     label = 2.0*label-1.0
-    cm = np.dot(label.transpose(), label)
-    N = label.shape[0]
-    cm = cm/N
+    cm = pairwise_kernels(label, metric=(lambda x, y: 
+            x.dot(y)/(norm(x,2)*norm(y,2))))
+    # N = label.shape[0]
+    # cm = cm/N
 
     return (cm+1.0)/2.0
 

@@ -31,13 +31,13 @@ class ModelsLowRank(NetModel):
     _default_include_pooling = [0,1,4]
     _default_include_dropout = [5,6]
 
-    def __init__(self, model_name, io, num_layers=7, 
+    def __init__(self, model_name, io, num_layers=15, col_config=None,
         num_filters=_default_num_filters, num_outputs=_default_num_outputs, 
         conv_k=_default_conv_k, conv_ks=_default_conv_ks, conv_pad=_default_conv_pad,
         pool_k=_default_pool_k, pool_ks=_default_pool_ks, pool_pad=_default_pool_pad,
         dropout_ratio=_default_dropout_ratio, include_lrn=_default_include_lrn, 
         include_pooling=_default_include_pooling, include_dropout=_default_include_dropout,
-        use_mdc=False, share_basis=False):
+        share_basis=False, use_bn=False):
         """
             Initialize a network model with low-rank structure.
             Inputs:
@@ -46,7 +46,7 @@ class ModelsLowRank(NetModel):
                             (for a single branch).
         """
         # initialize base class
-        NetModel.__init__(self, model_name, io, num_layers)
+        NetModel.__init__(self, model_name, io, num_layers, col_config)
         # options in the architecture
         self._num_filters = num_filters
         self._num_outputs = num_outputs
@@ -60,10 +60,10 @@ class ModelsLowRank(NetModel):
         self._include_lrn = include_lrn
         self._include_pooling = include_pooling
         self._include_dropout = include_dropout
-        self._use_mdc = use_mdc
         self._share_basis= share_basis
-
-    def _layer_type(self, i):
+        self._use_bn = use_bn
+        
+    def layer_type(self, i):
         """Return type of the layer """
         if i == self.num_layers:
             return 'output'
@@ -91,8 +91,7 @@ class ModelsLowRank(NetModel):
         kwargs=dict(bottom_dict=new_bottom_dict, deploy=deploy)
         if self._use_basis(self.num_layers):
             kwargs['num_filters'] = self._num_filters['output'][self.num_layers] 
-
-        kwargs['use_mdc'] = self._use_mdc
+        
         kwargs['share_basis'] = self._share_basis
 
         self.io.add_output(net, **kwargs)
@@ -101,9 +100,9 @@ class ModelsLowRank(NetModel):
         """ Add intermediate layers to the network. """
         bottom_dict = {0: data}
         for i in xrange(self.num_layers):
-            if self._layer_type(i) == 'conv':
+            if self.layer_type(i) == 'conv':
                 bottom_dict = self._add_conv_layer_i(net, i, bottom_dict)
-            elif self._layer_type(i) == 'fc':
+            elif self.layer_type(i) == 'fc':
                 bottom_dict = self._add_fc_layer_i(net, i, bottom_dict)
 
         return bottom_dict
@@ -133,14 +132,17 @@ class ModelsLowRank(NetModel):
                 if self._use_basis(i):
                     # linear combination
                     lh.add_conv(net, bottom=net[blob_name], name=br_name, param_name=conv_names, k=1, 
-                        ks=1, pad=0, nout=self._num_outputs['conv'][i], std='ReLu', use_mdc=self._use_mdc)
+                        ks=1, pad=0, nout=self._num_outputs['conv'][i], std='ReLu')
                 else:
                     lh.add_conv(net, bottom=bottom_dict[j], name=br_name, param_name=conv_names, k=self._conv_k[i], 
                         ks=self._conv_ks[i], pad=self._conv_pad[i], nout=self._num_outputs['conv'][i], 
-                        std='ReLu', use_mdc=self._use_mdc)
+                        std='ReLu')
 
                 # bottom set used for the next layer
                 new_bottom_dict[self.tops_at(i,j,k)] = net[br_name]
+                # add BN
+                if self._use_bn:
+                    lh.add_bn(net, bottom=net[br_name], name='bn_' + br_name)
                 # add ReLu
                 lh.add_relu(net, bottom=net[br_name], name='relu'+self._post_fix_at(i,j,k))
                 # add LRN if necessary
@@ -183,12 +185,15 @@ class ModelsLowRank(NetModel):
                 if self._use_basis(i):
                     # linear combination
                     lh.add_fc(net, bottom=net[blob_name], name=br_name, param_name=conv_names,
-                        nout=self._num_outputs['fc'][i], std='ReLu', use_mdc=self._use_mdc)
+                        nout=self._num_outputs['fc'][i], std='ReLu')
                 else:
                     lh.add_fc(net, bottom=bottom_dict[j], name=br_name, param_name=conv_names, 
-                        nout=self._num_outputs['fc'][i], std='ReLu', use_mdc=self._use_mdc)                    
+                        nout=self._num_outputs['fc'][i], std='ReLu')                    
                 # bottom set used for the next layer
                 new_bottom_dict[self.tops_at(i,j,k)] = net[br_name]
+                # add BN
+                if self._use_bn:
+                    lh.add_bn(net, bottom=net[br_name], name='bn_' + br_name)
                 # add ReLu
                 lh.add_relu(net, bottom=net[br_name], name='relu'+self._post_fix_at(i,j,k))
                 # add Dropout if necessary
@@ -201,7 +206,7 @@ class ModelsLowRank(NetModel):
 
     def _use_basis(self, i):
         """ Determine if layer i uses basis or not  """
-        layer_type = self._layer_type(i)
+        layer_type = self.layer_type(i)
         return (self._num_filters.has_key(layer_type) and self._num_filters[layer_type].has_key(i))
 
     def _post_fix_at(self, i, j, k=None):
@@ -225,7 +230,7 @@ class ModelsLowRank(NetModel):
         if i == self.num_layers:
             return self.io.branch_name_at_j_k(j,k)
         elif i < self.num_layers:
-            return self._layer_type(i)+self._post_fix_at(i,j,k)
+            return self.layer_type(i)+self._post_fix_at(i,j,k)
 
     def names_at_i_j(self, i, j):
         """ Return the name of the parameters at layer i, column j.
@@ -256,10 +261,12 @@ class ModelsLowRank(NetModel):
                     param_mapping[(names['basis'], )] = names['basis']
                 for agg_name in names['agg']:
                     param_mapping[(agg_name,)] = agg_name
+                    # if self._use_bn and i<self.num_layers:
+                    #     param_mapping[('bn_'+agg_name,)] = 'bn_'+agg_name
 
         for target, src in changes.iteritems():
             if len(target) == 2:
-                # blobs
+                # columns
                 i, j = target
                 i1, j1 = src
                 if self._use_basis(i):
@@ -273,6 +280,8 @@ class ModelsLowRank(NetModel):
                 name =  self.branch_name_at_i_j_k(i, j, k)
                 name1 =  self.branch_name_at_i_j_k(i1, j1, k1)
                 param_mapping[(name,)] = name1
+                # if self._use_bn and i<self.num_layers:
+                #     param_mapping[('bn_'+name,)] = 'bn_'+name1
 
         return param_mapping
 

@@ -7,7 +7,7 @@ import os
 import os.path as osp
 import cPickle
 import yaml
-from layers.multilabel_err import compute_mle
+from utils.error import compute_mle
 
 """Class to manipulate IBMattributes dataset """
 

@@ -17,6 +17,7 @@ def im_list_to_blob(filelist, pixel_means, scale):
     num_images = len(imgs)
     blob = np.zeros((num_images, scale, scale, 3), dtype=np.float32)
     for i in xrange(num_images):
+        assert imgs[i] is not None, 'File {} is not loaded correctly'.format(filelist[i])
         im = prep_im_for_blob(imgs[i], pixel_means, scale)
         blob[i, 0:scale, 0:scale, :] = im
     # permute channel to (batch_size, channel, height, width)

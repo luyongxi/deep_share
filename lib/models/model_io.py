@@ -35,7 +35,7 @@ class ModelIO(object):
         """ add input layers """
         return NotImplementedError
 
-    def add_output(self, net, bottom_dict, deploy=False, use_mdc=False, share_basis=False):
+    def add_output(self, net, bottom_dict, deploy=False, share_basis=False):
         """ add output layers """
         return NotImplementedError
 
@@ -69,7 +69,7 @@ class ClassificationIO(ModelIO):
     def loss_layer(self):
         return self._loss_layer     
 
-    def add_output(self, net, bottom_dict, num_filters=None, deploy=False, use_mdc=False, share_basis=False):
+    def add_output(self, net, bottom_dict, num_filters=None, deploy=False, share_basis=False):
         """ add output layers """
         # bottom_dict[k] is a tuple (num_tasks_at(i,k), bottom[k])
         # this determines the number of fc layers needed. 
@@ -98,7 +98,7 @@ class ClassificationIO(ModelIO):
                 blob_name = self.branch_name_at_j_k(j,k)
                 filter_names = {'weights': blob_name+'_w', 'bias': blob_name+'_b'}
                 lh.add_fc(net, bottom=bottom, name=blob_name, param_name=filter_names, 
-                    nout=1, lr_factor=1, std='ReLu', use_mdc=use_mdc)
+                    nout=1, lr_factor=1, std='ReLu')
                 task_layer_list.append(net[blob_name])
 
         self.add_loss(net, task_layer_list, deploy)

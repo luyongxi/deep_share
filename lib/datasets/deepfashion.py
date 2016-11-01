@@ -5,52 +5,38 @@ from imdb import Imdb
 import numpy as np
 import os 
 import cPickle
-from layers.multilabel_err import compute_mle
+from utils.error import compute_mle
 
 """Class to manipulate DeepFashion dataset """
-
-
-# Warning! This file is completely unusable!
-# Should thoroughly test it before registering it to datasets.factory!
-
-# TODO: Develop an interface for the DeepFashion dataset
-# That would mean a copmlete overhaul in the class list
-# Some changes in how the annotations and files lists are loaded
-# although that is similar to CelebA due to same distributor of the 
-# dataset.
-
-# TODO: Need a way to load a dataset consists of both CelebA and DeepFashion images. 
-# We can reuse the code by making a thin wrapper that uses the CelebA and DeepFashion
-# functions. Note however we need some additional interfaces annotation cross datasets
-# images, and those will be loaded as a third step. 
-
-# The the image_list and the annotation should provide exactly the same interface as a
-# single dataset interface. But when asked, this funciton should also provide information
-# about the origin of label. Is it from CelebA, DeepFashion, or is it annotated using
-# fine-tuned models? Those are important questions to answer. 
-
-# Need to pay attention to the class list. The large number of attribute classes demands
-# a better representation.
 
 class DeepFashion(Imdb):
     """ Image database for DeepFashion dataset. """
     
-    def __init__(self, split, align=False):
-        name = 'celeba_'+split      
-        if align is True:
-            name += '_align'
-
+    def __init__(self, split):
+        name = 'deepfashion_'+split      
         Imdb.__init__(self, name)
-        
-        # object classes    
-        self._classes = \
-            ['5_o_Clock_Shadow', 'Arched_Eyebrows', 'Attractive', 'Bags_Under_Eyes', 'Bald', 'Bangs', 'Big_Lips', 'Big_Nose', 'Black_Hair', 'Blond_Hair', 'Blurry', 'Brown_Hair', 'Bushy_Eyebrows', 'Chubby', 'Double_Chin', 'Eyeglasses', 'Goatee', 'Gray_Hair', 'Heavy_Makeup', 'High_Cheekbones', 'Male', 'Mouth_Slightly_Open', 'Mustache', 'Narrow_Eyes', 'No_Beard', 'Oval_Face', 'Pale_Skin', 'Pointy_Nose', 'Receding_Hairline', 'Rosy_Cheeks', 'Sideburns', 'Smiling', 'Straight_Hair', 'Wavy_Hair', 'Wearing_Earrings', 'Wearing_Hat', 'Wearing_Lipstick', 'Wearing_Necklace', 'Wearing_Necktie', 'Young']    
-        
-        # load image paths and annotations
+                
+        # load image paths
         self._data_path = os.path.join(self.data_path, 'imdb_DeepFashion') 
-        self._load_dataset(split, align)
-            
-    def _load_dataset(self, split, align):
+        
+        # attribute classes
+        self._classes = []
+        self._class_types = []
+        attr_file = os.path.join(self.data_path, 'Anno', 'list_attr_cloth.txt')
+        with open(attr_file, 'r') as fid:
+            # skip first two lines
+            next(fid)
+            next(fid)
+            # read class list
+            for line in fid:
+                parsed_line = line.split()
+                self._classes.append(' '.join(parsed_line[:-1]))
+                self._class_types.append(int(parsed_line[-1]))
+
+        # load annotations
+        self._load_dataset(split)
+
+    def _load_dataset(self, split):
         """ Load image path list and ground truths """
         
         # load image path list and ground truths from the cache
@@ -65,46 +51,44 @@ class DeepFashion(Imdb):
                 return
         
         # load list of images
-        self._image_list, self._index_list = self._do_load_filelist(split, align)   
+        self._image_list, self._index_list = self._do_load_filelist(split)   
         
         # load attributes and landmarks data
-        self._gtdb = {'attr': np.zeros((self.num_images, self.num_classes), dtype=np.bool), 'lm': np.zeros((self.num_images, 10), dtype=np.float32)}    
+        self._gtdb = {'attr': np.zeros((self.num_images, self.num_classes), dtype=np.bool)}    
         self._gtdb['attr'] = self._do_load_attributes()
-        self._gtdb['lm'] = self._do_load_landmarks(align)
 
         dbcache = {'image_list': self.image_list, 'gtdb': self.gtdb}
         # save to cache         
         with open(cache_file, 'wb') as fid:
             cPickle.dump(dbcache, fid, cPickle.HIGHEST_PROTOCOL)
-            print 'wrote database cache to {}'.format(cache_file)       
+            print 'wrote database cache to {}'.format(cache_file)
 
-    def _do_load_filelist(self, split, align):
+    def _do_load_filelist(self, split):
         """ Return the absolute paths to image files """
         file = os.path.join(self.data_path, 'Eval', 'list_eval_partition.txt')
-    
-        # determine the matching id
+        # list of keywords associated with the desired partition
         if split == 'train':
-            sp_idx = ['0']
+            sp_idx = ['train']
         elif split == 'val':
-            sp_idx = ['1']
+            sp_idx = ['val']
         elif split == 'test':
-            sp_idx = ['2']
+            sp_idx = ['test']
         elif split == 'trainval':
-            sp_idx = ['0', '1']
+            sp_idx = ['train', 'val']
         else:
             raise NameError('Undefined Data Split: {}'.format(split))           
 
-        # determine image folder
-        if align:
-            basepath = os.path.join(self.data_path, 'Img', 'img_align_celeba') 
-        else:
-            basepath = os.path.join(self.data_path, 'Img', 'img_celeba')
+        basepath = self.data_path
     
         # find paths to all files
         image_list = []
         idx_list = []
         idx = 0
         with open(file, 'r') as fid:
+            # skip first two lines
+            next(fid)
+            next(fid)
+            # parse the ground truth file
             for line in fid:
                 split = line.split()
                 if split[1] in sp_idx:
@@ -116,50 +100,24 @@ class DeepFashion(Imdb):
 
     def _do_load_attributes(self):
         """ Load attributes of the listed images. """
-        file = os.path.join(self.data_path, 'Anno', 'list_attr_celeba.txt')
+        file = os.path.join(self.data_path, 'Anno', 'list_attr_img.txt')
 
         attr = np.zeros((self.num_images, self.num_classes), dtype=np.bool)
 
-        base_idx = min(self._index_list)
-        end_idx = max(self._index_list)
 
         with open(file, 'r') as fid:
-            for _ in xrange(2+base_idx):    # skip the first two+base_idx lines
-                next(fid)
-            
-            idx = 0
+            # skip the first two lines
+            next(fid)
+            next(fid)
+            # parse the ground truth file
             for line in fid:
                 split = line.split()
-                if idx <= end_idx-base_idx:
-                    attr[idx, :] = np.array(split[1:], dtype=np.float32) > 0
-                idx = idx + 1
-        
+                name_i = os.path.join(self.data_path, split[0])
+                idx = [i for i in xrange(self.num_images) if self._image_list[i]==name_i]
+                if len(idx) > 0:
+                    attr[idx[0], :] = np.array(split[1:], dtype=np.float32) > 0
+
         return attr
-
-    def _do_load_landmarks(self, align):
-        """ Load landmarks of the litsed images. """
-        if align:
-            file = os.path.join(self.data_path, 'Anno', 'list_landmarks_align_celeba.txt')
-        else:
-            file = os.path.join(self.data_path, 'Anno', 'list_landmarks_celeba.txt')
-
-        lm = np.zeros((self.num_images, 10), dtype=np.float32)
-    
-        base_idx = min(self._index_list)
-        end_idx = max(self._index_list)
-            
-        with open(file, 'r') as fid:
-            for _ in xrange(2+base_idx):    # skip the first two+base_idx lines
-                next(fid)
-            
-        idx = 0
-        for line in fid:
-            split = line.split()
-            if idx <= end_idx-base_idx:
-                lm[idx, :] = np.array(split[1:], dtype=np.float32)
-            idx = idx + 1
-
-        return lm
     
     def evaluate(self, scores, ind, cls_idx=None):
         """ Evaluation: Report classification error rate. 
@@ -175,6 +133,7 @@ class DeepFashion(Imdb):
         
         return err
 
+
     def print_info(self, i):
         """ Output information about the image and some ground truth. """
 
@@ -183,7 +142,4 @@ class DeepFashion(Imdb):
         print 'width: {}, height: {}'.format(im_size[0], im_size[1])
         
         attr_i = self.gtdb['attr'][i, :]
-        lm_i = self.gtdb['lm'][i, :]
-
         print 'The attributes are: {}'.format(','.join([self._classes[i] for i in np.where(attr_i==1)[0]]))
-        print 'The landmarks points are: {}'.format(lm_i)   
