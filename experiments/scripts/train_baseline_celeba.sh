@@ -25,7 +25,6 @@ time ./tools/train_cls.py --gpu 0 \
     --clip_gradients 20 \
     --loss Sigmoid \
     --model ${model} \
-    --snapshot_prefix celeba_train\
     --last_low_rank ${last_low_rank} \
     --use_svd \
     --exp celeba_baseline_${model}_${last_low_rank} \

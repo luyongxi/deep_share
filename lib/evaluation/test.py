@@ -10,6 +10,8 @@ from utils.timer import Timer
 from utils.config import cfg
 import cPickle
 
+import os.path as osp
+
 def classification_test(net, imdb, cls_idx):
     """ Test a model on imdb. """
 
@@ -86,3 +88,37 @@ def save_softlabels(net, image_list, score_file, labeler):
     with open(score_file, 'wb') as fid:
         cPickle.dump(scores, fid, cPickle.HIGHEST_PROTOCOL)
         print '!!! The scores are saved to {}.'.format(score_file)
+
+def eval_and_save(net, imdb, cls_idx):
+    """ Evaluate the network, and save the scores to a given destination """
+
+    if cls_idx is None:
+        cls_idx = np.arange(imdb.num_classes)
+
+    num_classes = len(cls_idx)
+    num_images = imdb.num_images
+
+    # iterate over images, collect error vectors
+    scores = np.zeros((num_images, num_classes)) # in {0,1} format
+    timer = Timer()
+    for i in xrange(num_images):
+        # prepare blobs 
+        label_name = "prob"
+        fn = imdb.image_path_at(i)
+        data = im_list_to_blob([fn], cfg.PIXEL_MEANS, cfg.SCALE)
+        net.blobs['data'].reshape(*(data.shape))
+        # forward the network
+        timer.tic()
+        blobs_out = net.forward(data=data.astype(np.float32, copy=False))
+        timer.toc()
+        # get results
+        scores[i, cls_idx] = blobs_out[label_name]
+        # print infos
+        print 'Image {}/{} ::: speed: {:.3f}s per image.'.format(i, num_images, timer.average_time)
+
+    # save scores as a pkl file
+    score_fn = osp.join(imdb.data_path, imdb.name+'.pkl')
+    with open(score_fn, 'wb') as fid:
+        cPickle.dump(scores, fid, cPickle.HIGHEST_PROTOCOL)
+        print '!!! The scores are saved to {}.'.format(score_fn)
+

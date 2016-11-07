@@ -2,24 +2,26 @@ jbsub -mem 3g -mail -cores 1+1 -queue x86_short ./train_joint_entropyloss.sh
 
 
 # experiments with baseline using thin models
-./train_baseline_celeba.sh 40000 20000 0.001 small32-lowvgg16 0
-./train_baseline_deepfashion.sh 40000 20000 0.001 small32-lowvgg16 0
+./train_baseline_celeba.sh 40000 16000 0.001 small32-lowvgg16 0
+./train_baseline_deepfashion.sh 16000 20000 0.001 small32-lowvgg16 0
 
 # experiments with baseline using large models
-./train_baseline_celeba.sh 40000 20000 0.001 lowvgg16 0
-./train_baseline_deepfashion.sh 40000 20000 0.001 lowvgg16 0
+./train_baseline_celeba.sh 40000 16000 0.001 lowvgg16 0
+./train_baseline_deepfashion.sh 40000 16000 0.001 lowvgg16 0
 
 # experiments with single class
 ./train_baseline_single_celeba.sh 10000 8000 0.001 lowvgg16 0 ${cls_id}
 ./train_baseline_single_celeba.sh 10000 8000 0.001 small32-lowvgg16 0 ${cls_id}
 
 # experiments with baseline using low rank models
-./train_baseline_celeba.sh 40000 20000 0.001 lowvgg16 16
-./train_baseline_deepfashion.sh 40000 20000 0.001 lowvgg16 16
+./train_baseline_celeba.sh 40000 16000 0.001 lowvgg16 16
+./train_baseline_deepfashion.sh 40000 16000 0.001 lowvgg16 16
 
 # experiments with branching
-./train_branch_celeba.sh 40000 20000 0.001 small32-lowvgg16 0 15 1000 1.0
-./train_branch_deepfashion.sh 40000 20000 0.001 small32-lowvgg16 0 15 1000 1.0
+./train_branch_celeba.sh 40000 16000 0.001 small32-lowvgg16 0 15 1000 1.0
+./train_branch_deepfashion.sh 40000 16000 0.001 small32-lowvgg16 0 15 1000 1.0
 
 # experiments with joint dataset
-./train_branch_personattr.sh 40000 20000 0.001 small32-lowvgg16 0 15 1000 1.0
+./train_branch_personattr.sh 80000 32000 0.001 small32-lowvgg16 0 15 2000 1.0
+
+# TODO: for thin models, we probably could use more training iterations? 

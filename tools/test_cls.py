@@ -16,6 +16,8 @@ import sys, os
 import json
 from evaluation.test import classification_test
 
+import yaml
+
 def parse_args():
     """
     Parse input arguments

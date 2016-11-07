@@ -58,9 +58,6 @@ def parse_args():
     parser.add_argument('--cls_id', dest='cls_id',
                         help='comma-separated list of classes to train',
                         default=None, type=str)
-    parser.add_argument('--infix', dest='infix',
-                        help='additional infix to add',
-                        default='',type=str)
     # options concerning solver, will be overriden if --solver is specified. 
     parser.add_argument('--base_lr', dest='base_lr',
                         help='base learning rate',
@@ -83,8 +80,6 @@ def parse_args():
                         default='L2', type=str)
     parser.add_argument('--clip_gradients', dest='clip_gradients',
                         default=None, type=float)
-    parser.add_argument('--snapshot_prefix', dest='snapshot_prefix',
-                        default='default', type=str)
     # network model to use, will be overriden if --solver is specified.  
     parser.add_argument('--model', dest='model',
                         default='low-vgg-m', type=str)
@@ -146,9 +141,6 @@ if __name__ == '__main__':
 
     cfg_set_path(args.exp_dir)
 
-    # add additional infix if necessary
-    cfg.TRAIN.SNAPSHOT_INFIX += args.infix
-
     # use mean file if provided
     if args.mean_file is not None:
         with open(args.mean_file, 'rb') as fid:
@@ -209,7 +201,7 @@ if __name__ == '__main__':
         solver_path = osp.join(output_dir, 'prototxt')
         solver_params = SolverParameter(path=solver_path, base_lr=args.base_lr, lr_policy=args.lr_policy, 
             gamma=args.gamma, stepsize=args.stepsize, momentum=args.momentum, weight_decay=args.weight_decay, 
-            regularization_type=args.regularization_type, clip_gradients=args.clip_gradients, snapshot_prefix=args.snapshot_prefix)
+            regularization_type=args.regularization_type, clip_gradients=args.clip_gradients)
     else:
         # get model parameters
         model_params = ModelParameter()

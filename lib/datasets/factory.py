@@ -28,16 +28,46 @@ from celeba import CelebA
 from celeba_plus_webcam_cls import CelebA_Plus_Webcam_Cls
 from IBMattributes import IBMAttributes
 from deepfashion import DeepFashion
+from personattr import PersonAttributes
 
 # dataset functor
 __sets = {}
+
+# PersonAttributes dataset
+for split in ['train', 'val', 'trainval']:
+    name = 'person_{}'.format(split)
+    __sets[name] = (lambda split=split:
+                    PersonAttributes(split))
+
+# PersonAttributes dataset (align)
+for split in ['train', 'val', 'trainval']:
+    name = 'person_{}_align'.format(split)
+    __sets[name] = (lambda split=split:
+                    PersonAttributes(split, align=True))
+
+# PersonAttributes dataset (face partition)
+for split in ['train', 'val', 'trainval', 'test']:
+    name = 'person_face_{}'.format(split)
+    __sets[name] = (lambda split=split:
+                    PersonAttributes(split, partition='face'))
+
+# PersonAttributes dataset (face partition)
+for split in ['train', 'val', 'trainval', 'test']:
+    name = 'person_face_{}_align'.format(split)
+    __sets[name] = (lambda split=split:
+                    PersonAttributes(split, align=True, partition='face'))
+
+# PersonAttributes dataset (clothes partition)
+for split in ['train', 'val', 'trainval', 'test']:
+    name = 'person_clothes_{}'.format(split)
+    __sets[name] = (lambda split=split:
+                    PersonAttributes(split, partition='clothes'))
 
 # setup DeepFashion dataset
 for split in ['train', 'val', 'test', 'trainval']:
     name = 'deepfashion_{}'.format(split)
     __sets[name] = (lambda split=split:
                     DeepFashion(split))
-
 # setup CelebA dataset
 for split in ['train', 'val', 'test', 'trainval']:
     name = 'celeba_{}'.format(split)

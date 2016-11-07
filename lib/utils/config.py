@@ -48,9 +48,6 @@ __C.TRAIN.CORR_FREQ = 100
 # Cluster repetition
 __C.TRAIN.CLUSTER_REP = 5
 
-# Infix to yield te path
-__C.TRAIN.SNAPSHOT_INFIX = ''
-
 # Minibatch sizes
 __C.TRAIN.IMS_PER_BATCH = 32
 

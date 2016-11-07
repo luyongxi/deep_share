@@ -96,18 +96,18 @@ class ModelsLowRank(NetModel):
 
         self.io.add_output(net, **kwargs)
 
-    def _add_intermediate_layers(self, net, data):
+    def _add_intermediate_layers(self, net, data, deploy):
         """ Add intermediate layers to the network. """
         bottom_dict = {0: data}
         for i in xrange(self.num_layers):
             if self.layer_type(i) == 'conv':
-                bottom_dict = self._add_conv_layer_i(net, i, bottom_dict)
+                bottom_dict = self._add_conv_layer_i(net, i, bottom_dict, deploy=deploy)
             elif self.layer_type(i) == 'fc':
-                bottom_dict = self._add_fc_layer_i(net, i, bottom_dict)
+                bottom_dict = self._add_fc_layer_i(net, i, bottom_dict, deploy=deploy)
 
         return bottom_dict
 
-    def _add_conv_layer_i(self, net, i, bottom_dict):
+    def _add_conv_layer_i(self, net, i, bottom_dict, deploy):
         """ Add a convolutional layer at layer i. """
         use_lrn = (i in self._include_lrn)
         use_pooling = (i in self._include_pooling)
@@ -141,7 +141,7 @@ class ModelsLowRank(NetModel):
                 # bottom set used for the next layer
                 new_bottom_dict[self.tops_at(i,j,k)] = net[br_name]
                 # add BN
-                if self._use_bn:
+                if self._use_bn and (not deploy):
                     lh.add_bn(net, bottom=net[br_name], name='bn_' + br_name)
                 # add ReLu
                 lh.add_relu(net, bottom=net[br_name], name='relu'+self._post_fix_at(i,j,k))
@@ -161,7 +161,7 @@ class ModelsLowRank(NetModel):
 
         return new_bottom_dict
 
-    def _add_fc_layer_i(self, net, i, bottom_dict):
+    def _add_fc_layer_i(self, net, i, bottom_dict, deploy):
         """ Add a fully connected layer at layer i. """
         use_dropout = (i in self._include_dropout)
         new_bottom_dict = {}
@@ -192,7 +192,7 @@ class ModelsLowRank(NetModel):
                 # bottom set used for the next layer
                 new_bottom_dict[self.tops_at(i,j,k)] = net[br_name]
                 # add BN
-                if self._use_bn:
+                if self._use_bn and (not deploy):
                     lh.add_bn(net, bottom=net[br_name], name='bn_' + br_name)
                 # add ReLu
                 lh.add_relu(net, bottom=net[br_name], name='relu'+self._post_fix_at(i,j,k))
@@ -289,7 +289,7 @@ class ModelsLowRank(NetModel):
         """ Update deploy net. """
         self._deploy_net = caffe.NetSpec()
         data = self._add_input_layers(self._deploy_net, deploy=True)
-        bottom_dict = self._add_intermediate_layers(self._deploy_net, data)
+        bottom_dict = self._add_intermediate_layers(self._deploy_net, data, deploy=True)
         self._add_output_layers(self._deploy_net, bottom_dict, deploy=True)
         # add input definition strings.
         self._deploy_str='input: {}\ninput_dim: {}\ninput_dim: {}\ninput_dim: {}\ninput_dim: {}'.\
@@ -301,7 +301,7 @@ class ModelsLowRank(NetModel):
         self._val_net = caffe.NetSpec()
         in_nets = {'train': self._train_net, 'val': self._val_net}
         data = self._add_input_layers(in_nets, deploy=False)
-        bottom_dict = self._add_intermediate_layers(self._train_net, data)
+        bottom_dict = self._add_intermediate_layers(self._train_net, data, deploy=False)
         self._add_output_layers(self._train_net, bottom_dict, deploy=False)
 
     def proto_str(self, deploy):

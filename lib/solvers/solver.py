@@ -2,12 +2,6 @@
 
 """ Wrappers for solvers and training hyperparameters """
 
-# TODO: add comparision with and without somp initialization
-# With that comparision, we should know precisely how much
-# the initialization has contributed to the error rate.
-# If the error rate w/ and w/o the initialization is too close,
-# we should seek better initialziation techniques. 
-
 from caffe.proto import caffe_pb2
 from google.protobuf import text_format
 import google.protobuf as pb2
@@ -222,14 +216,10 @@ class SolverWrapper(object):
             automatically determines if we are training a multiple round procedure,
             and adjust naming conventions accordingly.
         """
-        infix = ('_' + cfg.TRAIN.SNAPSHOT_INFIX 
-                 if cfg.TRAIN.SNAPSHOT_INFIX != '' else '')
         if self._model_params.max_rounds > 1:
-            filename = (self._solver_params.snapshot_prefix + '_' + 'round_{}'.format(self._cur_round) + 
-                        infix + '_iter_{:d}'.format(self._solver.iter) + '.caffemodel')
+            filename = ('round_{}'.format(self._cur_round) + '_iter_{:d}'.format(self._solver.iter) + '.caffemodel')
         else:
-            filename = (self._solver_params.snapshot_prefix + infix +
-                        '_iter_{:d}'.format(self._solver.iter) + '.caffemodel')
+            filename = ('iter_{:d}'.format(self._solver.iter) + '.caffemodel')
         filename = os.path.join(self._output_dir, filename)
 
         return filename
@@ -282,7 +272,7 @@ class SolverParameter(object):
 
     def __init__(self, solver_prototxt=None, path=None, base_lr=0.01, lr_policy="step", 
         gamma=0.1, stepsize=20000, momentum=0.9, weight_decay=0.0005,
-        regularization_type="L2", clip_gradients=None, snapshot_prefix='default'):
+        regularization_type="L2", clip_gradients=None):
 
         assert (path is not None) or (solver_prototxt is not None),\
             'Need to specify either path or solver_prototxt.'
@@ -304,7 +294,6 @@ class SolverParameter(object):
             self._solver.momentum = momentum
             self._solver.weight_decay = weight_decay
             self._solver.regularization_type = regularization_type
-            self._solver.snapshot_prefix = snapshot_prefix
             # caffe solver snapshotting is disabled
             self._solver.snapshot = 0
             # shut down caffe display
@@ -326,10 +315,6 @@ class SolverParameter(object):
     @property
     def path(self):
         return osp.dirname(self._solver_prototxt)
-
-    @property
-    def snapshot_prefix(self):
-        return self._solver.snapshot_prefix    
 
     def to_proto(self):
         self._save_prototxt()

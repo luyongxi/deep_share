@@ -7,7 +7,7 @@
 import datasets
 from utils.config import cfg
 from utils.timer import Timer
-# from utils.holder import CircularQueue
+from utils.convertBN import convertBN
 from numpy.linalg import norm
 from sklearn.metrics.pairwise import pairwise_kernels
 from .solver import SolverWrapper
@@ -22,6 +22,7 @@ import google.protobuf as pb2
 
 import json
 from sklearn.cluster import SpectralClustering
+
 
 class ClassificationSW(SolverWrapper):
     """ Wrapper around Caffe's solver """
@@ -145,6 +146,18 @@ class ClassificationSW(SolverWrapper):
         self._save_error_data()
 
         SolverWrapper.snapshot(self)
+
+        # Save a modified snapshot, will rewrite the one from the same round if necessary. 
+        if self._model_params.max_rounds > 1:
+            dname = ('round_{}'.format(self._cur_round) + '_deploy''.caffemodel')
+        else:
+            dname = ('deploy.caffemodel')
+        dname = os.path.join(self._output_dir, dname)
+
+        convertBN(inmodel=caffename, outmodel=dname)
+        fn = os.path.splitext(dname)[0] + '.clsid'
+        with open(fn, 'wb') as f:
+            f.write(json.dumps(self._cls_id))
 
     def _find_partition(self, layer, col, max_col):
         """ Find the partition at the particular layer and col 

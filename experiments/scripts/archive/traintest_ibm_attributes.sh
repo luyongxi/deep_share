@@ -25,7 +25,6 @@ time ./tools/train_cls.py --gpu 0 \
     --stepsize 16000 \
     --model low-vgg-16 \
     --loss Sigmoid \
-    --snapshot_prefix low-vgg-16-ibmattributes-$1 \
     --last_low_rank $1 \
     --use_svd \
     --exp low-vgg-16-ibmattributes-$1 \

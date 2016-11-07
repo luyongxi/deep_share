@@ -22,7 +22,6 @@ time ./tools/train_cls.py --gpu 0 \
     --stepsize 6000 \
     --model low-vgg-16 \
     --loss Softmax \
-    --snapshot_prefix low-vgg-16-hairhatbald-$1 \
     --last_low_rank $1 \
     --use_svd \
     --exp low-vgg-16-hairhatbald-$1 \
