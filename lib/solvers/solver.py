@@ -22,6 +22,8 @@ class SolverWrapper(object):
         self._cur_round = 0
         # use output path
         self._output_dir = output_dir
+        if not osp.exists(self._output_dir):
+            os.makedirs(self._output_dir)
         # imdb
         self._imdb = imdb
         # save parameters

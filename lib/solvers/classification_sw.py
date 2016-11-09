@@ -140,6 +140,7 @@ class ClassificationSW(SolverWrapper):
         """
         caffename = self.snapshot_name()
         fn = os.path.splitext(caffename)[0] + '.clsid'
+        
         with open(fn, 'wb') as f:
             f.write(json.dumps(self._cls_id))
 
