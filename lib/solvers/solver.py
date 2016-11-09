@@ -44,9 +44,11 @@ class SolverWrapper(object):
                 solver_path = osp.join(solver_path, 'round_{}'.format(self._cur_round))
             solver_params.set_path(solver_path)
 
-        model_params.model.to_proto(solver_path, deploy=False)
-        model_params.model.to_proto(solver_path, deploy=True)
-        print 'Model files saved at {}'.format(solver_path)
+        model = model_params.model
+        if model is not None:
+            model.to_proto(solver_path, deploy=False)
+            model.to_proto(solver_path, deploy=True)
+            print 'Model files saved at {}'.format(solver_path)
 
         return caffe.SGDSolver(solver_params.to_proto())
 
