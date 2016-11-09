@@ -181,8 +181,6 @@ class SolverWrapper(object):
                 print 'saving net[{}] <- pretrained[{}]...'.format(key[0], value)
                 for i in xrange(len(src_params[value])):
                     self._solver.net.params[key[0]][i].data[...] = src_params[value][i]
-                    if key[0] == 'bn_fc15_1_2':
-                        print i, src_params[value][i]
 
                 # self._solver.net.params[key[0]][0].data[...] = src_params[value][0]
                 # self._solver.net.params[key[0]][1].data[...] = src_params[value][1]

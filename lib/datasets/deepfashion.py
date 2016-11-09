@@ -22,7 +22,7 @@ class DeepFashion(Imdb):
         # attribute classes
         self._classes = []
         self._class_types = []
-        attr_file = os.path.join(self.data_path, 'Anno', 'list_attr_cloth.txt')
+        attr_file = os.path.join(self.data_path, 'Anno', 'list_category_cloth.txt')
         with open(attr_file, 'r') as fid:
             # skip first two lines
             next(fid)
@@ -100,7 +100,7 @@ class DeepFashion(Imdb):
 
     def _do_load_attributes(self):
         """ Load attributes of the listed images. """
-        file = os.path.join(self.data_path, 'Anno', 'list_attr_img.txt')
+        file = os.path.join(self.data_path, 'Anno', 'list_category_img.txt')
 
         attr = np.zeros((self.num_images, self.num_classes), dtype=np.bool)
 
@@ -115,8 +115,9 @@ class DeepFashion(Imdb):
                 name_i = os.path.join(self.data_path, split[0])
                 idx = [i for i in xrange(self.num_images) if self._image_list[i]==name_i]
                 if len(idx) > 0:
-                    attr[idx[0], :] = np.array(split[1:], dtype=np.float32) > 0
-
+                    cls_id = int(split[1]) - 1
+                    attr[idx[0], cls_id] = 1.0
+                    # attr[idx[0], :] = np.array(split[1:], dtype=np.float32) > 0
         return attr
     
     def evaluate(self, scores, ind, cls_idx=None):
@@ -132,7 +133,6 @@ class DeepFashion(Imdb):
         err = compute_mle(scores, gt)
         
         return err
-
 
     def print_info(self, i):
         """ Output information about the image and some ground truth. """

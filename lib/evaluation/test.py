@@ -12,8 +12,63 @@ import cPickle
 
 import os.path as osp
 
-def classification_test(net, imdb, cls_idx):
-    """ Test a model on imdb. """
+def test_cls_topk(net, imdb, cls_idx, k):
+    """ Test a model on imdb and evaluate the top-k accuracy metric  """
+
+    if cls_idx is None:
+        cls_idx = np.arange(imdb.num_classes)
+
+    num_classes = len(cls_idx)
+    assert k<=num_classes, 'k={} should be less than or equal to num_classes={}'.\
+        format(k, num_classes)
+    num_images = imdb.num_images
+
+    # iterate over images, collect error vectors
+    found = np.zeros((num_images, num_classes)) # in {0,1} format
+    timer = Timer()
+    for i in xrange(num_images):
+        # prepare blobs 
+        label_name = "prob"
+        fn = imdb.image_path_at(i)
+        data = im_list_to_blob([fn], cfg.PIXEL_MEANS, cfg.SCALE)
+        net.blobs['data'].reshape(*(data.shape))
+        # forward the network
+        timer.tic()
+        blobs_out = net.forward(data=data.astype(np.float32, copy=False))
+        timer.toc()
+        # get results
+        scores = blobs_out[label_name]
+        # find recall of top-k attributes
+        top_classes = np.argsort(-scores)[0, :k]
+        pos_classes = np.where(imdb.gtdb['attr'][i, cls_idx] == 1)[0]
+
+        found_classes =  [idx for idx in pos_classes if idx in top_classes]
+        found[i, found_classes] = 1.0
+
+        # print infos
+        print 'Image {}/{} ::: speed: {:.3f}s per image.'.format(i, num_images, timer.average_time)
+
+    # print out basic dataset information
+    print '---------------------------------------------------------------'
+    print '!!! Summary of results.'
+    print '!!! Test model on the "{}" dataset'.format(imdb.name)
+    print '!!! The dataset has {} images.'.format(imdb.num_images)
+    print '!!! On average, there are {} active attribute classese per image'.format(np.mean(np.sum(imdb.gtdb['attr'][:, cls_idx], axis=1)))
+    print '!!! The average run time is {} per image.'.format(timer.average_time)
+
+    # get error for each class
+    class_names = imdb.classes
+    recall = np.nansum(found, axis=0)/np.sum(imdb.gtdb['attr'][:, cls_idx], axis=0)
+    for i in xrange(len(cls_idx)):
+        print '!!! Top {} recall rate for class {} is: {}'.\
+            format(k, class_names[cls_idx[i]], recall[i])
+
+    print '!!! The top-{} recall rate is {}.'.format(k, recall.mean())
+    print '---------------------------------------------------------------'
+
+
+def test_cls_error(net, imdb, cls_idx):
+    """ Test a model on imdb and evaluate the error rate. """
 
     if cls_idx is None:
         cls_idx = np.arange(imdb.num_classes)

@@ -6,6 +6,8 @@
 
 """Test classificaiton accuracy"""
 
+# TODO: add top-k recall as another metric. 
+
 import _init_paths
 from utils.config import cfg, cfg_from_file, cfg_set_path, get_output_dir
 from datasets.factory import get_imdb
@@ -14,7 +16,7 @@ import pprint
 import caffe
 import sys, os
 import json
-from evaluation.test import classification_test
+from evaluation.test import test_cls_error, test_cls_topk
 
 import yaml
 
@@ -32,9 +34,9 @@ def parse_args():
     parser.add_argument('--weights', dest='weights',
                         help='trained caffemodel',
                         default=None, type=str)
-    parser.add_argument('--task_name', dest='task_name',
-                        help='the name of the task',
-                        default='multilabel',type=str)
+    parser.add_argument('--metric', dest='metric',
+                        help='the metric used in evaluatoin',
+                        default='error_rate',type=str)
     parser.add_argument('--cfg', dest='cfg_file',
                         help='optional config file',
                         default=None, type=str)
@@ -82,4 +84,11 @@ if __name__ == '__main__':
     with open(classid_name, 'rb') as f:
         class_id = json.loads(f.read())
 
-    classification_test(net, imdb, class_id)
+    if args.metric == 'error_rate':
+        test_cls_error(net, imdb, class_id)
+    elif args.metric == 'top-3':
+        test_cls_topk(net, imdb, class_id, k=3)
+    elif args.metric == 'top-5':
+        test_cls_topk(net, imdb, class_id, k=5)
+    elif args.metric == 'top-10':
+        test_cls_topk(net, imdb, class_id, k=10)
