@@ -131,12 +131,12 @@ class CelebA(Imdb):
             for _ in xrange(2+base_idx):    # skip the first two+base_idx lines
                 next(fid)
             
-        idx = 0
-        for line in fid:
-            split = line.split()
-            if idx <= end_idx-base_idx:
-                lm[idx, :] = np.array(split[1:], dtype=np.float32)
-            idx = idx + 1
+            idx = 0
+            for line in fid:
+                split = line.split()
+                if idx <= end_idx-base_idx:
+                    lm[idx, :] = np.array(split[1:], dtype=np.float32)
+                idx = idx + 1
 
         return lm
     
