@@ -17,6 +17,8 @@ def test_cls_topk(net, imdb, cls_idx, k):
 
     if cls_idx is None:
         cls_idx = np.arange(imdb.num_classes)
+    else:
+        cls_idx = np.array(cls_idx)
 
     num_classes = len(cls_idx)
     assert k<=num_classes, 'k={} should be less than or equal to num_classes={}'.\
@@ -24,7 +26,9 @@ def test_cls_topk(net, imdb, cls_idx, k):
     num_images = imdb.num_images
 
     # iterate over images, collect error vectors
-    found = np.zeros((num_images, num_classes)) # in {0,1} format
+    # only test attributes that are properly labelled
+    val_ind = np.any(imdb.gtdb['attr'][:, cls_idx]>=0, axis=0)
+    found = np.zeros((num_images, np.sum(val_ind))) # in {0,1} format
     timer = Timer()
     for i in xrange(num_images):
         # prepare blobs 
@@ -39,8 +43,8 @@ def test_cls_topk(net, imdb, cls_idx, k):
         # get results
         scores = blobs_out[label_name]
         # find recall of top-k attributes
-        top_classes = np.argsort(-scores)[0, :k]
-        pos_classes = np.where(imdb.gtdb['attr'][i, cls_idx] == 1)[0]
+        top_classes = np.argsort(-scores[:, val_ind])[0, :k]
+        pos_classes = np.where(imdb.gtdb['attr'][i, cls_idx[val_ind]] == 1)[0]
 
         found_classes =  [idx for idx in pos_classes if idx in top_classes]
         found[i, found_classes] = 1.0
@@ -53,31 +57,37 @@ def test_cls_topk(net, imdb, cls_idx, k):
     print '!!! Summary of results.'
     print '!!! Test model on the "{}" dataset'.format(imdb.name)
     print '!!! The dataset has {} images.'.format(imdb.num_images)
-    print '!!! On average, there are {} active attribute classese per image'.format(np.mean(np.sum(imdb.gtdb['attr'][:, cls_idx], axis=1)))
+    print '!!! On average, there are {} active attribute classese per image'.format(np.mean(np.sum(imdb.gtdb['attr'][:, cls_idx[val_ind]], axis=1)))
     print '!!! The average run time is {} per image.'.format(timer.average_time)
 
-    # get error for each class
+    # get recall for each class
     class_names = imdb.classes
-    recall = np.nansum(found, axis=0)/np.sum(imdb.gtdb['attr'][:, cls_idx], axis=0)
-    for i in xrange(len(cls_idx)):
-        print '!!! Top {} recall rate for class {} is: {}'.\
-            format(k, class_names[cls_idx[i]], recall[i])
+    num_pos = np.sum(imdb.gtdb['attr'][:, cls_idx[val_ind]], axis=0)
+    recall = np.nansum(found, axis=0)/num_pos
+    for i in xrange(np.sum(val_ind)):
+        print '!!! Top {} recall rate for class {} is: {} ({} instances)'.\
+            format(k, class_names[cls_idx[val_ind][i]], recall[i], num_pos[i])
 
-    print '!!! The top-{} recall rate is {}.'.format(k, recall.mean())
+    print '!!! The top-{} recall rate is {}.'.format(k, np.nanmean(recall))
     print '---------------------------------------------------------------'
 
+    # print top-k accuracy
+    print '!!! The top-{} accuracy rate is {}.'.format(k, np.sum(np.any(found>0, axis=1), dtype=np.float64)/num_images)
 
 def test_cls_error(net, imdb, cls_idx):
     """ Test a model on imdb and evaluate the error rate. """
 
     if cls_idx is None:
         cls_idx = np.arange(imdb.num_classes)
+    else:
+        cls_idx = np.array(cls_idx)
 
     num_classes = len(cls_idx)
     num_images = imdb.num_images
 
     # iterate over images, collect error vectors
-    err = np.zeros((num_images, num_classes)) # in {0,1} format
+    val_ind = np.any(imdb.gtdb['attr'][:, cls_idx]>=0, axis=0)
+    err = np.zeros((num_images, np.sum(val_ind))) # in {0,1} format
     timer = Timer()
     for i in xrange(num_images):
         # prepare blobs 
@@ -92,7 +102,7 @@ def test_cls_error(net, imdb, cls_idx):
         # get results
         scores = blobs_out[label_name]
         # evaluate the scores
-        err[i,:] = imdb.evaluate(scores, np.array([i]), cls_idx)
+        err[i,:] = imdb.evaluate(scores[:, val_ind], np.array([i]), cls_idx[val_ind])
         # print infos
         print 'Image {}/{} ::: speed: {:.3f}s per image.'.format(i, num_images, timer.average_time)
 
@@ -106,9 +116,9 @@ def test_cls_error(net, imdb, cls_idx):
     # get error for each class
     class_names = imdb.classes
     mean_err = np.nanmean(err, axis=0)
-    for i in xrange(len(cls_idx)):
+    for i in xrange(np.sum(val_ind)):
         print '!!! Error rate for class {} is: {}'.\
-            format(class_names[cls_idx[i]], mean_err[i])
+            format(class_names[cls_idx[val_ind][i]], mean_err[i])
 
     print '!!! The average error rate is {}.'.format(mean_err.mean())
     print '---------------------------------------------------------------'

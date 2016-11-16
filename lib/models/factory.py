@@ -94,10 +94,6 @@ __models['sp-lowvgg16'] = (lambda io, model_name='sp-lowvgg16',
     path='.', **kwargs: 
     _sp_low_vgg_16_gen(io=io, model_name=model_name, **kwargs))
 
-__models['sp1-lowvgg16'] = (lambda io, model_name='sp1-lowvgg16', 
-    path='.', **kwargs: 
-    _sp1_low_vgg_16_gen(io=io, model_name=model_name, **kwargs))
-
 def get_models(name, **kwargs):
     """ Get an model (network architecture) by name."""
     if not __models.has_key(name):
@@ -240,35 +236,12 @@ def _sp_low_vgg_16_gen(io, model_name, **kwargs):
                     'fc':{13:64,14:64}, 'output': {15:16}}
 
     # specify number of outputs
-    num_outputs = {'conv':{0:32,1:64,2:128,3:128,4:224,5:224,6:224,
-                           7:224,8:256,9:256,10:256,11:288,12:288}, 
-                    'fc':{13:576,14:768}}
+    num_outputs = {'conv':{0:32,1:32,2:32,3:32,4:96,5:96,6:96,
+                           7:192,8:256,9:288,10:288,11:288,12:416}, 
+                    'fc':{13:896,14:1216}}
 
     return _low_vgg_16_base(io, model_name, 
         num_filters=num_filters, num_outputs=num_outputs, include_dropout=[], **kwargs)
-
-def _sp1_low_vgg_16_gen(io, model_name, **kwargs):
-    """ 
-        The VGG-16 variants with smaller number of outputs at each layer,
-        and the model is full rank
-
-        We also turn off dropout.
-
-        VGG-16 -> 13 fully connected layers and 2 fully connected layers 
-        last_low_rank specifies the last layer to perform low-rank factorization. 
-    """
-    # parameters for convolutional layers
-    num_filters = {'conv':{0:8,1:8,2:16,3:16,4:32,5:32,6:32,
-                           7:32,8:32,9:32,10:32,11:32,12:32}, 
-                    'fc':{13:64,14:64}, 'output': {15:16}}
-
-    # specify number of outputs
-    num_outputs = {'conv':{0:32,1:32,2:32,3:32,4:32,5:32,6:32,
-                           7:64,8:64,9:160,10:160,11:320,12:320}, 
-                    'fc':{13:1280,14:1280}}
-
-    return _low_vgg_16_base(io, model_name, 
-        num_filters=num_filters, num_outputs=num_outputs, include_dropout=[], **kwargs)   
 
 def _low_vgg_16_base(io, model_name, **kwargs):
     """ VGG-16 -> 13 fully connected layers and 2 fully connected layers 

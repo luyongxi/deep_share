@@ -19,7 +19,11 @@ class PersonAttributes(Imdb):
 
     def __init__(self, split, align=False, partition='all'):
 
-        name = 'person_' + partition + '_' + split
+        if not partition == 'all':
+            name = 'person_' + partition + '_' + split
+        elif partition == 'all':
+            name = 'person_' + split
+
         if align and (partition == 'all' or partition == 'face'):
             name += '_align'
 
@@ -65,9 +69,12 @@ class PersonAttributes(Imdb):
             else:
                 fn = osp.join(self.data_path, 'person_'+'face'+'_'+split+'.pkl') 
             if osp.exists(fn):
-                with open(fn, 'rb') as fid:
-                    labels = cPickle.load(fid)
-                    self._gtdb['attr'][:celeba_num, self._clothes_class_idx] = labels
+                if partition == 'all':
+                    with open(fn, 'rb') as fid:
+                        labels = cPickle.load(fid)
+                        self._gtdb['attr'][:celeba_num, self._clothes_class_idx] = labels
+                else:
+                    'Dataset {}: Labels for clothes attributes on CelebA are not loaded, the partition is not "all"'.format(self.name)
             else:
                 print 'Dataset {}: Labels for clothes attributes on CelebA are not available! Missing filename: {}. Did you forget to run load_person.py first?'.\
                     format(self.name, fn)
@@ -78,9 +85,12 @@ class PersonAttributes(Imdb):
             # load soft labels for face attributes on deepfashion
             fn = osp.join(self.data_path, 'person_'+'clothes'+'_'+split+'.pkl')
             if osp.exists(fn):
-                with open(fn, 'rb') as fid:
-                    labels = cPickle.load(fid)
-                    self._gtdb['attr'][celeba_num:, self._face_class_idx] = labels
+                if partition == 'all':
+                    with open(fn, 'rb') as fid:
+                        labels = cPickle.load(fid)
+                        self._gtdb['attr'][celeba_num:, self._face_class_idx] = labels
+                else:
+                    'Dataset {}: Labels for face attributes on Deepfashion are not loaded, the partition is not "all"'.format(self.name)
             else:
                 print 'Dataset {}: Labels for face attributes on Deepfashion are not available! Missing filename: {}. Did you forget to run load_person.py first?'.\
                     format(self.name, fn)

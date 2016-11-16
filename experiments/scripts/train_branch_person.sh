@@ -22,17 +22,17 @@ cd ../..
 
 time ./tools/load_person.py --gpu 0 \
     --model_face output/celeba_baseline_lowvgg16_0/celeba_train/prototxt/test.prototxt \
-    --weights_face output/celeba_baseline_lowvgg16_0/celeba_train/celeba_train_iter_40000.caffemodel \
+    --weights_face output/celeba_baseline_lowvgg16_0/celeba_train/deploy.caffemodel \
     --model_clothes output/deepfashion_baseline_lowvgg16_0/deepfashion_train/prototxt/test.prototxt \
-    --weights_clothes output/deepfashion_baseline_lowvgg16_0/deepfashion_train/deepfashion_train_iter_40000.caffemodel \
+    --weights_clothes output/deepfashion_baseline_lowvgg16_0/deepfashion_train/deploy.caffemodel \
     --imdb_face person_clothes_train \
     --imdb_clothes person_face_train
 
 time ./tools/load_person.py --gpu 0 \
     --model_face output/celeba_baseline_lowvgg16_0/celeba_train/prototxt/test.prototxt \
-    --weights_face output/celeba_baseline_lowvgg16_0/celeba_train/celeba_train_iter_40000.caffemodel \
+    --weights_face output/celeba_baseline_lowvgg16_0/celeba_train/deploy.caffemodel \
     --model_clothes output/deepfashion_baseline_lowvgg16_0/deepfashion_train/prototxt/test.prototxt \
-    --weights_clothes output/deepfashion_baseline_lowvgg16_0/deepfashion_train/deepfashion_train_iter_40000.caffemodel \
+    --weights_clothes output/deepfashion_baseline_lowvgg16_0/deepfashion_train/deploy.caffemodel \
     --imdb_face person_clothes_val \
     --imdb_clothes person_face_val
 

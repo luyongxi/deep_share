@@ -129,7 +129,8 @@ class DeepFashion(Imdb):
         if cls_idx is None:
             cls_idx = np.arange(self.num_classes)
 
-        gt = self.gtdb['attr'][ind, cls_idx]
+        gt = self.gtdb['attr'][ind, :]
+        gt = gt[:, cls_idx]
         err = compute_mle(scores, gt)
         
         return err
